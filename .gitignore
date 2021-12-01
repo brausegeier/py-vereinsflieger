@@ -1,3 +1,4 @@
 *~
-__pycache__*
+__pycache__/*
 main_with_credentials.py
+backup/

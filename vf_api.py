@@ -15,15 +15,15 @@ class VF_API():
 
     def __init__(self, debug = 0):
         self._debug = debug
-        self._logged_in = 0
-        self._error = 0
-        self._user_id = None
-        self._user_pwd_hash = None
-        self._input_kv = None
+        self._cleanup()
         self._session = requests.Session()
 
 
     def login(self, user_id, user_pwd, login_timeout = 1.5):
+        if self._logged_in == 1:
+            print("%s: Already logged in with user \"%s\"" % (sys._getframe().f_code.co_name, self._user_id))
+            return self._logged_in
+
         self._user_id = user_id
         self._user_pwd_hash = hashlib.md5(user_pwd.encode()).hexdigest()
 
@@ -44,14 +44,23 @@ class VF_API():
 
 
     def create_voucher(self, voucher_type, voucher_name):
+        if self._logged_in == 0:
+            print("%s: Login first!" % (sys._getframe().f_code.co_name))
+            return -1
+
         voucher_id = None
+
+#        https://vereinsflieger.de/member/community/voucher/
 
         return voucher_id
 
 
     def logout(self):
-        self._request_logout()
+        if self._logged_in == 0:
+            print("%s: Not logged in. Logging out anyway..." % (sys._getframe().f_code.co_name))
 
+        self._request_logout()
+        self._cleanup()
         self._session.close()
 
 
@@ -66,6 +75,22 @@ class VF_API():
         print("%s: %s" % (func_name, text))
         self._error = error_id
         return error_id
+
+    ########
+    def _cleanup(self):
+    ########
+        self._logged_in = 0
+        self._error = 0
+        self._user_id = None
+        self._user_pwd_hash = None
+        self._input_kv = None
+        self._js_version_id = None
+        self._css_version_id_0 = None
+        self._css_version_id_1 = None
+        self._signin_js_id = None
+        self._pwdsalt_site = None
+        self._magic_id_0 = None
+        self._magic_id_1 = None
 
 
     #######
