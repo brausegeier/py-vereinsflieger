@@ -3,6 +3,9 @@
 import requests
 import hashlib
 import re
+#import csv
+import pandas as pd
+from io import StringIO
 import time
 
 import inspect, sys
@@ -14,8 +17,8 @@ class VF_API():
     ####################
 
     def __init__(self, debug = 0):
-        self._debug = debug
         self._cleanup()
+        self._debug = debug
         self._session = requests.Session()
 
 
@@ -43,16 +46,20 @@ class VF_API():
         return self._request_login()
 
 
-    def create_voucher(self, voucher_type, voucher_name):
+    def create_voucher(self, voucher_data):
         if self._logged_in == 0:
             print("%s: Login first!" % (sys._getframe().f_code.co_name))
             return -1
 
-        voucher_id = None
-
-#        https://vereinsflieger.de/member/community/voucher/
-
-        return voucher_id
+        self._cleanup_voucher()
+        self._voucher_data = voucher_data
+        self._get_voucher_list()
+        self._generate_next_voucher_id()
+        self._create_voucher()
+        self._validate_voucher_creation()
+        resp = [self._voucher_valid, self._voucher_data]
+        self._cleanup_voucher()
+        return resp
 
 
     def logout(self):
@@ -76,11 +83,19 @@ class VF_API():
         self._error = error_id
         return error_id
 
+
     ########
     def _cleanup(self):
     ########
-        self._logged_in = 0
         self._error = 0
+        self._cleanup_login()
+        self._cleanup_voucher()
+
+
+    ########
+    def _cleanup_login(self):
+    ########
+        self._logged_in = 0
         self._user_id = None
         self._user_pwd_hash = None
         self._input_kv = None
@@ -91,6 +106,14 @@ class VF_API():
         self._pwdsalt_site = None
         self._magic_id_0 = None
         self._magic_id_1 = None
+
+
+    ########
+    def _cleanup_voucher(self):
+    ########
+        self._voucher_valid = False
+        self._voucher_list = None
+        self._voucher_data = None
 
 
     #######
@@ -161,7 +184,7 @@ class VF_API():
         self._signin_js_id      = re.search('<script src="signinjs\?v=(.+)"></script>', login_page_data).group(1)
 
         #
-        # check, if those various version ids were sucessfully extracted
+        # check, if those various version ids were successfully extracted
         #
         if self._js_version_id is None:
             return self._throw_error(-2, "No JS version ID found!", sys._getframe().f_code.co_name)
@@ -355,6 +378,7 @@ class VF_API():
         # check if it worked
         #
         #if re.search('<form id="signin" name="signin"', main_page_data) is None:
+        # Alternative: check if there is a logout button present (more universal)
         if main_page.url == 'https://vereinsflieger.de/member/overview/overview':
             self._logged_in = 1
             if self._debug > 0:
@@ -395,5 +419,180 @@ class VF_API():
         resp = self._session.get('https://vereinsflieger.de/signout.php?signout=1')
         self._debug_page(resp, sys._getframe().f_code.co_name)
             
+        return 0
+
+
+    ########
+    def _get_voucher_list(self):
+    ########
+        if self._error < 0:
+            return self._error
+        if not isinstance(self._session, requests.Session):
+            return self._throw_error(-1, "Invalid session: %s" % (resp), sys._getframe().f_code.co_name)
+
+        if self._debug > 0:
+            print("%s: Getting voucher list" % (sys._getframe().f_code.co_name))
+
+        #
+        # get voucher list csv file, extract encoding type from http headers
+        #
+        voucher_list = self._session.get('https://vereinsflieger.de/member/community/voucher/voucher.php?output=csv&exportlistid=96')
+        voucher_encoding = re.search('\'Content-Type\': \'application/octet-stream;charset=([a-zA-Z0-9-]+);\', \'Content-Length\'', str(voucher_list.headers)).group(1)
+
+        if self._debug > 2:
+            print("%s: Voucher list encoding: \"%s\"" % (sys._getframe().f_code.co_name, voucher_encoding))
+        if self._debug > 0:
+            print("%s: Decoding voucher list" % (sys._getframe().f_code.co_name))
+
+        #
+        # decode data
+        #
+        #self._voucher_list = csv.reader(voucher_list.content.decode(voucher_encoding), delimiter=';')
+        self._voucher_list = pd.read_csv(StringIO(voucher_list.content.decode(voucher_encoding)), delimiter=';')
+        self._debug_page(voucher_list, sys._getframe().f_code.co_name, self._voucher_list)
+
+        if self._debug > 3:
+            print("%s: Voucher list column names: \"%s\"" % (sys._getframe().f_code.co_name, self._voucher_list.columns))
+
+        #
+        # some sanity checks on the received data
+        #
+        if self._voucher_list.ndim != 2 or "Ausgestellt am" not in self._voucher_list.columns:
+            self._voucher_list = None
+            return self._throw_error(-3, "Failed to get valid voucher list", sys._getframe().f_code.co_name)
+
+        return 0
+
+
+    ########
+    def _generate_next_voucher_id(self):
+    ########
+        if self._error < 0:
+            return self._error
+        if not isinstance(self._voucher_list, pd.DataFrame):
+            return self._throw_error(-3, "Invalid voucher list: %s" % (self._voucher_list), sys._getframe().f_code.co_name)
+
+        self._voucher_data["id"] = None
+
+        if self._debug > 0:
+            print("%s: Generating new voucher ID" % (sys._getframe().f_code.co_name))
+
+        #
+        # filter by voucher type and sort by id to get latest / highest id
+        # 
+        vl = self._voucher_list.copy()
+        #vl = vl[vl.Nummer.str.contains(self._voucher_data["type"]+"-")]
+        vl = vl[vl.Nummer.str.startswith(self._voucher_data["type"]+"-")]
+        vl.sort_values(by="Nummer", inplace=True, ascending=False)
+
+        #
+        # split voucher id into components
+        #
+        voucher_id = vl.at[0, "Nummer"]
+        if self._debug > 1:
+            print("%s: Latest voucher ID of type %s: \"%s\"" % (sys._getframe().f_code.co_name, self._voucher_data["type"], voucher_id))
+        voucher_id = voucher_id.removeprefix(self._voucher_data["type"]+"-")
+        voucher_year = voucher_id[0:4]
+        voucher_id = voucher_id.removeprefix(voucher_year+"-")
+        voucher_number = voucher_id[0:3]
+
+        # 
+        # generate next voucher id
+        #
+        current_year = time.strftime("%Y")
+        if int(current_year) > int(voucher_year):
+            # new year, start over
+            voucher_number = 1
+        else:
+            voucher_number = int(voucher_number) + 1
+
+        #
+        # check, if the new id is not already in use for some obscure reason
+        #
+        while (True):
+            if voucher_number > 999:
+                return self._throw_error(-10, "Maximum number of vouchers reached (%d). No more vouchers available this year." % (voucher_number-1), sys._getframe().f_code.co_name)
+    
+            voucher_id = self._voucher_data["type"]+"-"+current_year+("-%03d" % voucher_number)
+            if self._debug > 1:
+                print("%s: Checking if voucher ID \"%s\" already exists." % (sys._getframe().f_code.co_name, voucher_id))
+
+            # check if it exists already
+            if voucher_id in self._voucher_list.Nummer.values:
+                if self._debug > 1:
+                    print("%s: Voucher ID \"%s\" is already present." % (sys._getframe().f_code.co_name, voucher_id))
+                voucher_number = voucher_number + 1
+            else:
+                if self._debug > 1:
+                    print("%s: Voucher ID \"%s\" is still free." % (sys._getframe().f_code.co_name, voucher_id))
+                self._voucher_data["id"] = voucher_id#+"-"+voucher_hash
+                break
+
+#        #
+#        # add 4 digit hash
+#        #
+#        voucher_hash = "abc8"
+        if self._debug > 0:
+            print("%s: New voucher ID: \"%s\"" % (sys._getframe().f_code.co_name, voucher_id))
+
+        return 0
+
+
+    ########
+    def _create_voucher(self):
+    ########
+        if self._error < 0:
+            return self._error
+        if not isinstance(self._voucher_list, pd.DataFrame):
+            return self._throw_error(-3, "Invalid voucher list: %s" % (self._voucher_list), sys._getframe().f_code.co_name)
+
+        if self._debug > 0:
+            print("%s: Creating voucher with ID: \"%s\"" % (sys._getframe().f_code.co_name, self._voucher_data["id"]))
+#        create new voucher https://vereinsflieger.de/member/community/voucher/addvid
+        return 0
+
+
+    ########
+    def _validate_voucher_creation(self):
+    ########
+        self._voucher_valid = False
+
+        if self._error < 0:
+            return self._error
+        if "id" not in self._voucher_data or self._voucher_data["id"] is None:
+            return self._throw_error(-3, "Invalid voucher ID", sys._getframe().f_code.co_name)
+
+        if self._debug > 0:
+            print("%s: Verifying voucher with ID: \"%s\"" % (sys._getframe().f_code.co_name, self._voucher_data["id"]))
+
+        #
+        # Get (new) voucher list and check if new id is present
+        #
+        self._get_voucher_list()
+
+        # validate list
+        if not isinstance(self._voucher_list, pd.DataFrame):
+            return self._throw_error(-3, "Invalid voucher list: %s" % (self._voucher_list), sys._getframe().f_code.co_name)
+
+        if self._debug > 0:
+            print("%s: Voucher ID: \"%s\"" % (sys._getframe().f_code.co_name, self._voucher_data["id"]))
+            print("%s:" % (sys._getframe().f_code.co_name))
+
+        # check for presence of voucher id
+        if self._voucher_data["id"] in self._voucher_list.Nummer.values:
+            self._voucher_valid = True
+            if self._debug > 0:
+                print("%s: #################" % (sys._getframe().f_code.co_name))
+                print("%s: # VALID voucher #" % (sys._getframe().f_code.co_name))
+                print("%s: #################" % (sys._getframe().f_code.co_name))
+        else:
+            if self._debug > 0:
+                print("%s: ###################" % (sys._getframe().f_code.co_name))
+                print("%s: # voucher INVALID #" % (sys._getframe().f_code.co_name))
+                print("%s: ###################" % (sys._getframe().f_code.co_name))
+
+        if self._debug > 0:
+            print("%s:" % (sys._getframe().f_code.co_name))
+
         return 0
 
