@@ -1,39 +1,16 @@
 #!/usr/bin/python3
 
-import vf_api
+import voucher_server
 from credentials import credentials as cred
 
-test_data = {
-        "type"      : "SF",
-#        "type"      : "TMG",
-        "amount"    : "1",
-        "firstname" : "Max",
-        "lastname"  : "Mustermann",
-        "email"     : "max.mustermann@example.com",
-        "ip"        : "xx.xx.xx.xx"
-    }
 
-print("#### INIT")
-vf = vf_api.VF_API(debug=0)
-print("#### LOGIN")
-vf.login(cred().user_id, cred().user_pwd)
-voucher = vf.create_voucher(test_data)
-print("#### LOOUT")
-vf.logout()
-print("Voucher:\n%s" % (voucher))
-#print("#### LOGIN")
-#vf.login(cred().user_id, cred().user_pwd)
-#print("#### LOGIN")
-#vf.login(cred().user_id, cred().user_pwd)
-#print("#### LOOUT")
-#vf.logout()
-#print("#### LOOUT")
-#vf.logout()
-#print("#### LOGIN")
-#vf.login(cred().user_id, cred().user_pwd)
-#print("#### LOOUT")
-#vf.logout()
-#print("#### LOOUT")
-#vf.logout()
+vs = voucher_server.VoucherServer(debug=1)
 
+vs.vf_api.set_credentials(cred().vf_user_id, cred().vf_user_pwd)
+vs.rc.set_credentials(cred().rc_secret)
+
+#vs.enableSSL('./cert-and-key.pem')
+
+#vs.run()
+vs.single_shot()
 

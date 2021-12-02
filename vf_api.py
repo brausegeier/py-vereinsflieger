@@ -21,13 +21,46 @@ class VF_API():
         self._session = requests.Session()
 
 
-    def login(self, user_id, user_pwd, login_timeout = 2.0):
-        if self._logged_in == 1:
-            print("%s: Already logged in with user \"%s\"" % (sys._getframe().f_code.co_name, self._user_id))
-            return self._logged_in
+    def set_credentials(self, user_id, user_pwd):
+        if self._logged_in:
+            if self._debug > 0:
+                print("%s: Logging out previous user \"%s\"." % (sys._getframe().f_code.co_name, self._user_id))
+            self.logout()
 
         self._user_id = user_id
         self._user_pwd_hash = hashlib.md5(user_pwd.encode()).hexdigest()
+
+
+    def create_voucher(self, voucher_data):
+        self._cleanup_voucher()
+        if not self._logged_in:
+            if self._debug > 0:
+                print("%s: Logging in." % (sys._getframe().f_code.co_name))
+            self.login()
+
+        self._voucher_data = voucher_data
+        self._voucher_data["valid"] = False
+        self._get_voucher_list()
+        self._generate_next_voucher_id()
+        self._register_voucher()
+        self._validate_voucher()
+        res = [self._voucher_valid, self._voucher_data]
+        self._cleanup_voucher()
+
+        self.logout()
+
+        return res
+
+
+    def login(self, user_id = None, user_pwd = None, login_timeout = 2.0):
+        if self._logged_in:
+            print("%s: Already logged in with user \"%s\". Logout first!" % (sys._getframe().f_code.co_name, self._user_id))
+            return self._logged_in
+
+        if user_id is not None:
+            self._user_id = user_id
+        if user_pwd is not None:
+            self._user_pwd_hash = hashlib.md5(user_pwd.encode()).hexdigest()
 
         self._scrape_login_page()
         self._get_useless_files()
@@ -45,26 +78,10 @@ class VF_API():
         return self._request_login()
 
 
-    def create_voucher(self, voucher_data):
-        self._cleanup_voucher()
-        if self._logged_in == 0:
-            print("%s: Login first!" % (sys._getframe().f_code.co_name))
-            return -1
-
-        self._voucher_data = voucher_data
-        self._voucher_data["valid"] = False
-        self._get_voucher_list()
-        self._generate_next_voucher_id()
-        self._register_voucher()
-        self._validate_voucher()
-        res = [self._voucher_valid, self._voucher_data]
-        self._cleanup_voucher()
-        return res
-
-
     def logout(self):
-        if self._logged_in == 0:
-            print("%s: Not logged in. Logging out anyway..." % (sys._getframe().f_code.co_name))
+        if not self._logged_in:
+            if self._debug > 0:
+                print("%s: Not logged in. Logging out anyway..." % (sys._getframe().f_code.co_name))
 
         self._request_logout()
         self._cleanup()
@@ -95,9 +112,7 @@ class VF_API():
     ########
     def _cleanup_login(self):
     ########
-        self._logged_in = 0
-        self._user_id = None
-        self._user_pwd_hash = None
+        self._logged_in = False
         self._input_kv = None
         self._js_version_id = None
         self._css_version_id_0 = None
@@ -146,7 +161,6 @@ class VF_API():
         if not isinstance(self._session, requests.Session):
             return self._throw_error(-1, "Invalid session: %s" % (resp), sys._getframe().f_code.co_name)
 
-        #login_page = s.get('https://vereinsflieger.de', cookies={"clientwidth" : "1920"})
         login_page = self._session.get('https://vereinsflieger.de')
         login_page_data = login_page.content.decode('utf-8')
         self._debug_page(login_page, sys._getframe().f_code.co_name, login_page_data)
@@ -598,7 +612,10 @@ class VF_API():
         voucher_data["action"]          = "saveclose" # Create the voucher
 
         # for comment
-        voucher_provider = "brausegeier.de"
+        if "provider" in self._voucher_data.keys():
+            voucher_provider = self._voucher_data["provider"]
+        else:
+            voucher_provider = "'py-vereinsflieger.VF_API()'"
         voucher_date = time.strftime("%d.%m.%Y")
         voucher_time = time.strftime("%H:%M")
         # Optional logging of IP address to prevent / investigate abuse

@@ -2,6 +2,7 @@
 
 class credentials():
     def __init__(self):
-        self.user_id = ''
-        self.user_pwd = ''
+        self.vf_user_id   = ''
+        self.vf_user_pwd  = ''
+        self.rc_secret    = ''
 
