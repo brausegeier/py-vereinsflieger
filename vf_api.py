@@ -3,7 +3,6 @@
 import requests
 import hashlib
 import re
-#import csv
 import pandas as pd
 from io import StringIO
 import time
@@ -22,7 +21,7 @@ class VF_API():
         self._session = requests.Session()
 
 
-    def login(self, user_id, user_pwd, login_timeout = 1.5):
+    def login(self, user_id, user_pwd, login_timeout = 2.0):
         if self._logged_in == 1:
             print("%s: Already logged in with user \"%s\"" % (sys._getframe().f_code.co_name, self._user_id))
             return self._logged_in
@@ -47,19 +46,20 @@ class VF_API():
 
 
     def create_voucher(self, voucher_data):
+        self._cleanup_voucher()
         if self._logged_in == 0:
             print("%s: Login first!" % (sys._getframe().f_code.co_name))
             return -1
 
-        self._cleanup_voucher()
         self._voucher_data = voucher_data
+        self._voucher_data["valid"] = False
         self._get_voucher_list()
         self._generate_next_voucher_id()
-        self._create_voucher()
-        self._validate_voucher_creation()
-        resp = [self._voucher_valid, self._voucher_data]
+        self._register_voucher()
+        self._validate_voucher()
+        res = [self._voucher_valid, self._voucher_data]
         self._cleanup_voucher()
-        return resp
+        return res
 
 
     def logout(self):
@@ -370,16 +370,14 @@ class VF_API():
         #
         # login, i.e. do a post request with encoded pwd values
         #
-        main_page = self._session.post('https://vereinsflieger.de', data=self._input_kv)#, cookies=login_cookies)
+        main_page = self._session.post('https://vereinsflieger.de', data=self._input_kv)
         main_page_data = main_page.content.decode('utf-8')
         self._debug_page(main_page, sys._getframe().f_code.co_name, main_page_data)
 
         #
         # check if it worked
         #
-        #if re.search('<form id="signin" name="signin"', main_page_data) is None:
-        # Alternative: check if there is a logout button present (more universal)
-        if main_page.url == 'https://vereinsflieger.de/member/overview/overview':
+        if re.search('onclick="document.location.href=\'/signout.php\?signout=1\'">Abmelden<', main_page_data).group() is not None:
             self._logged_in = 1
             if self._debug > 0:
                 print("%s:" % (sys._getframe().f_code.co_name))
@@ -481,20 +479,21 @@ class VF_API():
         # filter by voucher type and sort by id to get latest / highest id
         # 
         vl = self._voucher_list.copy()
-        #vl = vl[vl.Nummer.str.contains(self._voucher_data["type"]+"-")]
         vl = vl[vl.Nummer.str.startswith(self._voucher_data["type"]+"-")]
         vl.sort_values(by="Nummer", inplace=True, ascending=False)
 
         #
         # split voucher id into components
         #
-        voucher_id = vl.at[0, "Nummer"]
+        voucher_id = vl.iloc[0].Nummer
         if self._debug > 1:
             print("%s: Latest voucher ID of type %s: \"%s\"" % (sys._getframe().f_code.co_name, self._voucher_data["type"], voucher_id))
-        voucher_id = voucher_id.removeprefix(self._voucher_data["type"]+"-")
-        voucher_year = voucher_id[0:4]
-        voucher_id = voucher_id.removeprefix(voucher_year+"-")
-        voucher_number = voucher_id[0:3]
+        
+        voucher_id_split = re.search('^[^-]+-([0-9]+)-([0-9]+)', voucher_id)
+        voucher_year = voucher_id_split.group(1)
+        voucher_number = voucher_id_split.group(2)
+#        #voucher_id_split = re.search('^[^-]+-([0-9]+)-([0-9]+)-([2-9A-HJ-NP-Z]*)', voucher_id)
+#        #voucher_hash = voucher_id_split.group(3)
 
         # 
         # generate next voucher id
@@ -525,13 +524,14 @@ class VF_API():
             else:
                 if self._debug > 1:
                     print("%s: Voucher ID \"%s\" is still free." % (sys._getframe().f_code.co_name, voucher_id))
-                self._voucher_data["id"] = voucher_id#+"-"+voucher_hash
+                self._voucher_data["id"] = voucher_id
                 break
 
 #        #
-#        # add 4 digit hash
+#        # add 4 digit alphanumeric "hash" (leave out digits 0,1, and letters O,I)
 #        #
-#        voucher_hash = "abc8"
+#        voucher_hash = "A4QV"
+#        self._voucher_data["id"] = self._voucher_data["id"]+"-"+voucher_hash
         if self._debug > 0:
             print("%s: New voucher ID: \"%s\"" % (sys._getframe().f_code.co_name, voucher_id))
 
@@ -539,23 +539,95 @@ class VF_API():
 
 
     ########
-    def _create_voucher(self):
+    def _register_voucher(self):
     ########
         if self._error < 0:
             return self._error
-        if not isinstance(self._voucher_list, pd.DataFrame):
-            return self._throw_error(-3, "Invalid voucher list: %s" % (self._voucher_list), sys._getframe().f_code.co_name)
+        if not isinstance(self._session, requests.Session):
+            return self._throw_error(-1, "Invalid session: %s" % (resp), sys._getframe().f_code.co_name)
 
         if self._debug > 0:
             print("%s: Creating voucher with ID: \"%s\"" % (sys._getframe().f_code.co_name, self._voucher_data["id"]))
-#        create new voucher https://vereinsflieger.de/member/community/voucher/addvid
+            if self._debug > 1:
+                print("%s: Submitting form querry request." % (sys._getframe().f_code.co_name))
+
+        #
+        # get preset voucher variables
+        #
+        voucher_page = self._session.get('https://vereinsflieger.de/member/community/voucher/addvid')
+        voucher_page_data = voucher_page.content.decode('utf-8')
+        self._debug_page(voucher_page, sys._getframe().f_code.co_name, voucher_page_data)
+
+        # extract input parameters
+        form_inputs = re.findall('<input.*name=\'[^\']+\'.*value=\'[^\']*\'.*[/]*>', voucher_page_data)
+        if self._debug > 3:
+            print("%s: voucher form input query result: %s" % (sys._getframe().f_code.co_name, form_inputs))
+        # populate input parameters
+        voucher_data = {}
+        for line in form_inputs:
+            single_input = re.search('name=\'([^\']+)\'.*value=\'([^\']*)\'', line)
+            if self._debug > 3:
+                print("%s: single input: %s" % (sys._getframe().f_code.co_name, single_input))
+            voucher_data[single_input.group(1)] = single_input.group(2)
+
+#        # extract "select" parameters
+#        form_inputs = re.findall('<select.*name=\'[^\']+\'', voucher_page_data)
+#        if self._debug > 3:
+#            print("%s: voucher form select query result: %s" % (sys._getframe().f_code.co_name, form_inputs))
+#        # populate "select" parameters
+#        for line in form_inputs:
+#            single_input = re.search('name=\'([^\']+)\'', line)
+#            if self._debug > 3:
+#                print("%s: single select: %s" % (sys._getframe().f_code.co_name, single_input))
+#            voucher_data[single_input.group(1)] = ""
+
+        if self._debug > 2:
+            print("%s: extracted voucher form data: %s" % (sys._getframe().f_code.co_name, voucher_data))
+
+        #
+        # fill in data
+        #
+        voucher_data["frm_email"]       = str(self._voucher_data["email"])
+        voucher_data["frm_firstname"]   = str(self._voucher_data["firstname"])
+        voucher_data["frm_lastname"]    = str(self._voucher_data["lastname"])
+        voucher_data["frm_voucherid"]   = str(self._voucher_data["id"])
+        voucher_data["frm_value"]       = str(self._voucher_data["amount"])+",00"
+        voucher_data["frm_title"]       = "Gutschein"
+        voucher_data["frm_status"]      = "1" # "Erstellt"
+        voucher_data["uid_browse"]      = "" # Do not prepopulate voucher user data
+        voucher_data["action"]          = "saveclose" # Create the voucher
+
+        # for comment
+        voucher_provider = "brausegeier.de"
+        voucher_date = time.strftime("%d.%m.%Y")
+        voucher_time = time.strftime("%H:%M")
+        # Optional logging of IP address to prevent / investigate abuse
+        voucher_ip = ""
+        if "ip" in self._voucher_data.keys():
+            voucher_ip = " von IP "+str(self._voucher_data["ip"])
+        voucher_data["frm_comment"] = "Automatisch erstellt über %s am %s um %s Uhr%s. Zahlungsaufforderung gesendet an %s" % (voucher_provider, voucher_date,
+                voucher_time, voucher_ip, voucher_data["frm_email"])
+
+
+        if self._debug > 1:
+            print("%s: Submitting creation request." % (sys._getframe().f_code.co_name))
+            if self._debug > 2:
+                print("%s: Submitting voucher form data: %s" % (sys._getframe().f_code.co_name, voucher_data))
+
+        #
+        # submit voucher creation request
+        #
+        voucher_request = self._session.post('https://vereinsflieger.de/member/community/voucher/addvid', data=voucher_data)
+        self._debug_page(voucher_request, sys._getframe().f_code.co_name)
+
         return 0
 
 
     ########
-    def _validate_voucher_creation(self):
+    def _validate_voucher(self):
     ########
         self._voucher_valid = False
+        self._voucher_data["valid"] = False
 
         if self._error < 0:
             return self._error
@@ -581,11 +653,14 @@ class VF_API():
         # check for presence of voucher id
         if self._voucher_data["id"] in self._voucher_list.Nummer.values:
             self._voucher_valid = True
+            self._voucher_data["valid"] = True
             if self._debug > 0:
                 print("%s: #################" % (sys._getframe().f_code.co_name))
                 print("%s: # VALID voucher #" % (sys._getframe().f_code.co_name))
                 print("%s: #################" % (sys._getframe().f_code.co_name))
         else:
+            self._voucher_valid = False
+            self._voucher_data["valid"] = False
             if self._debug > 0:
                 print("%s: ###################" % (sys._getframe().f_code.co_name))
                 print("%s: # voucher INVALID #" % (sys._getframe().f_code.co_name))
