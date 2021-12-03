@@ -314,7 +314,7 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
         voucher_message = ('''
         Hallo %s %s,</br>
         </br>
-        Sie haben einen %s Gutschein für %s %s bestellt. Bitte überweisen Sie den Betrag von %.2f Euro auf das folgende Konto um den Gutschein zu aktivieren:</br>
+        Sie haben einen %s Gutschein für %s %s bestellt. Bitte überweisen Sie den Betrag von %s Euro auf das folgende Konto um den Gutschein zu aktivieren:</br>
         </br>
         Inhaber: %s</br>
         IBAN: %s</br>
