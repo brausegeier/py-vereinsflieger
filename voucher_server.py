@@ -89,8 +89,8 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
 
         # check, if the user solved the recaptcha correctly
         [allowed, provider] = self.server.rc.validate(rc_response)
-        if not allowed:
-            return self._respond_recaptcha_failed()
+        #if not allowed:
+        #    return self._respond_recaptcha_failed()
 
         # insert location of the order form into log data
         if provider is not None:
@@ -116,13 +116,14 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
     #######
     def _extract_data(self):
     #######
-        return [None, ""]
         if self.server.debug > 2:
             for h in self.headers:
                 print("%s: Header: \"%s\"" % (sys._getframe().f_code.co_name, h))
 
-        # get content length for varous capitalizations
-        length_names = ['Content-Length', 'Content-length', 'content-Length', 'content-length']
+        #
+        # get content length for various capitalizations
+        #
+        length_names = ['Content-Length', 'Content-length', 'content-Length', 'content-length', 'CONTENT-LENGTH']
         content_len = -1
         for name in length_names:
             if name in self.headers.keys():
@@ -132,24 +133,68 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
                 print("%s: Invalid request. No \"Content-Length\" in headers: %s" % (sys._getframe().f_code.co_name, self.headers))
             return [None, None]
 
-        post_body = self.rfile.read(content_len)
-        print("Post body: %s" % post_body)
+        #
+        # read submitted data and split it into individual values
+        #
+        data_pairs = str(self.rfile.read(content_len).decode('utf-8')).split('&')
+        post_data = {}
+        for pair in data_pairs:
+            data_split = pair.split('=')
+            key = data_split[0]
+            value = data_split[1]
+            post_data[key] = value
+            if self.server.debug > 3:
+                print("%s: POST data (k,v) pair: \"%s\" = \"%s\"" % (sys._getframe().f_code.co_name, key, value))
+
+        if self.server.debug > 2:
+            print("%s: POST data: \"%s\"" % (sys._getframe().f_code.co_name, post_data))
 
         #
-        # TODO: implement data extraction
+        # check and interpret received data
         #
-        ################
-        rc_response = ""
-        voucher_data = {
-                "type"      : "SF",
-        #        "type"      : "TMG",
-                "amount"    : "1",
-                "firstname" : "Max",
-                "lastname"  : "Mustermann",
-                "email"     : "max.mustermann@example.com",
-                "ip"        : "xx.xx.xx.xx"
-            }
-        ################
+        required_keys = ["voucher_kind", "voucher_duration",
+                "buyer_firstname", "buyer_lastname", "buyer_email",
+                "beneficiary_firstname", "beneficiary_lastname",
+                "beneficiary_street", "beneficiary_zipcode", "beneficiary_city", # not required by script but by policy
+                "recaptcha"]
+        key_missing = False
+        for key in required_keys:
+            if key not in post_data.keys():
+                if self.server.debug > 0:
+                    print("%s: Invalid request. Key \"%s\" missing in POST data." % (sys._getframe().f_code.co_name, key))
+                key_missing = True
+        if key_missing:
+            return [None, None]
+
+        # recaptcha id (used as an error flag for voucher data if that is invalid)
+        rc_response = post_data["recaptcha"]
+        voucher_data = {}
+
+        # decode kind into type and amount
+        if post_data["voucher_kind"] == "1":
+            voucher_data["type"] = "SF"
+            voucher_data["amount"] = "35"
+        elif post_data["voucher_kind"] == "2":
+            voucher_data["type"] = "TMG"
+            duration = int(post_data["voucher_kind"])
+            if duration < 30 or duration > 120:
+                rc_response = None
+            duration = "%d" % (15 * (((duration-1) / 15)+1))
+            voucher_data["amount"] = duration
+
+        # contact info
+        voucher_data["buyer_firstname"] = post_data["buyer_firstname"]
+        voucher_data["buyer_lastname"]  = post_data["buyer_lastname"]
+        voucher_data["buyer_email"]     = post_data["buyer_email"]
+        voucher_data["guest_firstname"] = post_data["beneficiary_firstname"]
+        voucher_data["guest_lastname"]  = post_data["beneficiary_lastname"]
+
+        # buyer IP for abuse protection / prevention
+        voucher_data["ip"] = self.address_string()
+
+        if self.server.debug > 1:
+            print("%s: Voucher data: \"%s\"" % (sys._getframe().f_code.co_name, voucher_data))
+
         return [rc_response, voucher_data]
 
 
@@ -214,6 +259,29 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
             print("%s:" % (sys._getframe().f_code.co_name))
         if self.server.debug > 1:
             print("%s: %s" % (sys._getframe().f_code.co_name, voucher))
+
+        #
+        # Compose response mesage
+        #
+        if voucher["type"] == "SF":
+            voucher_type = "Segelflug"
+            voucher_amount = 35
+        elif voucher["type"] == "TMG":
+            voucher_type = ("Motorsegler (%d Minuten)" % voucher["amount"])
+            voucher_amount = int(110 * (voucher["amount"] / 60.0))
+        else:
+            voucher_type = "!Fehler!"
+            voucher_amount = 0
+
+        voucher_message = ('''
+        Hallo %s %s,</br>
+        Sie haben einen %s Gutschein für %s %s bestellt. Bitte überweisen Sie den Betrag von %d Euro auf das folende Konto um den Gutschein zu aktivieren:</br>
+        Inhaber: Breisgauverein für Segelflug e.V.</br>
+        IBAN: DE ...</br>
+        BIC: ...</br>
+        Verwendungszweck: %s
+        ''' % (voucher["buyer_firstname"], voucher["buyer_lastname"], voucher_type, voucher["guest_firstname"], voucher["guest_lastname"], voucher_amount,
+                voucher["id"]))
 
         #
         # Response -> redirect to success page (and display voucher / payment description)
