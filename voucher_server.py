@@ -210,7 +210,7 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
                 if self.server.debug > 0:
                     print("%s: Adjusted voucher duration to: \"%d\"" % (s_frame().f_code.co_name, duration))
             # update to next full 15 min
-            duration = (15 * int(ceil(duration / 15.0))
+            duration = (15 * int(ceil(duration / 15.0)))
             # calculate price
             amount = round((110.0 * duration / 60.0), 2)
             # converto to string with ',' instead of '.' as separator
