@@ -37,9 +37,18 @@ class VoucherServer():
         self.server.vf_api = self.vf_api
         self.server.rc = self.rc
         self.server.vf_lock = self._lock
+        self.server._bank_holder = "XXX"
+        self.server._bank_iban = "XXX"
+        self.server._bank_bic = "XXX"
 
 
-    def enableSSL(self, certfile):
+    def set_banking_data(self, bank_account_holder, iban, bic):
+        self.server._bank_holder = bank_account_holder
+        self.server._bank_iban   = iban
+        self.server._bank_bic    = bic
+
+
+    def enable_SSL(self, certfile):
         self.server.socket = wrap_socket(self.server.socket, certfile=certfile, server_side=True)
 
 
@@ -291,7 +300,7 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
         elif voucher["type"] == "TMG":
             voucher_minutes = int(voucher["amount"].split(",")[0])
             voucher_amount = 110.00 * (voucher_minutes / 60.00)
-            voucher_type = ("Motorsegler (%d Minuten)" % voucher_minutes)
+            voucher_type = ("%d minütigen Motorsegler" % voucher_minutes)
         else:
             voucher_type = "!Fehler!"
             voucher_amount = 0
@@ -299,12 +308,14 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
         voucher_message = ('''
         Hallo %s %s,</br>
         Sie haben einen %s Gutschein für %s %s bestellt. Bitte überweisen Sie den Betrag von %.2f Euro auf das folende Konto um den Gutschein zu aktivieren:</br>
-        Inhaber: ...</br>
-        IBAN: DE ...</br>
-        BIC: ...</br>
-        Verwendungszweck: %s
+        Inhaber: %s</br>
+        IBAN: %s</br>
+        BIC: %s</br>
+        Verwendungszweck: %s</br>
+        </br>
+        Vielen Dank für Ihre Bestellung!</br>
         ''' % (voucher["buyer_firstname"], voucher["buyer_lastname"], voucher_type, voucher["guest_firstname"], voucher["guest_lastname"], voucher_amount,
-                voucher["id"]))
+            self.server._bank_holder, self.server._bank_iban, self.server._bank_bic, voucher["id"]))
 
         #
         # Response -> redirect to success page (and display voucher / payment description)
