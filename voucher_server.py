@@ -208,9 +208,9 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
                 elif duration > 120:
                     duration = 120
                 if self.server.debug > 0:
-                    print("%s: Adjusted voucher duration to: \"%s\"" % (s_frame().f_code.co_name, duration))
+                    print("%s: Adjusted voucher duration to: \"%d\"" % (s_frame().f_code.co_name, duration))
             # update to next full 15 min
-            duration = "%d" % (15 * int(ceil(duration / 15.0)))
+            duration = (15 * int(ceil(duration / 15.0))
             # calculate price
             amount = round((110.0 * duration / 60.0), 2)
             # converto to string with ',' instead of '.' as separator
@@ -303,7 +303,7 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
         elif voucher["type"] == "TMG":
             # convert euros with ',' separator to value with '.' separator
             voucher_euro = int(voucher["amount"].split(",")[0])
-            voucher_euro = voucher_euro + (int(voucher["amount"].split(",")[1]) / 100)
+            voucher_euro = float(voucher_euro) + float(int(voucher["amount"].split(",")[1]) / 100.0)
             voucher_minutes = 60.0 * voucher_euro / 110.0
             voucher_minutes = int(round(voucher_minutes, 0))
             voucher_type = ("%d minütigen Motorsegler" % voucher_minutes)
