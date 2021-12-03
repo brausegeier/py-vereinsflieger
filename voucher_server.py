@@ -214,7 +214,7 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
             # calculate price
             amount = round((110.0 * duration / 60.0), 2)
             # converto to string with ',' instead of '.' as separator
-            voucher_data["amount"] = ("%d,%d" % (amount, (amount-int(amount))))
+            voucher_data["amount"] = ("%d,%02d" % (amount, (amount-int(amount))))
 
         # contact info
         voucher_data["buyer_firstname"] = post_data["buyer_firstname"]
