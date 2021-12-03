@@ -205,10 +205,10 @@ class VF_API():
         #
         # search for various version ids
         #
-        self._js_version_id     = re.search('<script src="/js/default\?v=(.+)"></script>', login_page_data).group(1)
-        self._css_version_id_0  = re.search('href="/css/publicDefault\?v=(.+)" />', login_page_data).group(1)
-        self._css_version_id_1  = re.search('href="/signin.css\?v=(.+)" />', login_page_data).group(1)
-        self._signin_js_id      = re.search('<script src="signinjs\?v=(.+)"></script>', login_page_data).group(1)
+        self._js_version_id     = re.search('<script src="/js/default\?v=(.+)"></script>', login_page_data)
+        self._css_version_id_0  = re.search('href="/css/publicDefault\?v=(.+)" />', login_page_data)
+        self._css_version_id_1  = re.search('href="/signin.css\?v=(.+)" />', login_page_data)
+        self._signin_js_id      = re.search('<script src="signinjs\?v=(.+)"></script>', login_page_data)
         if self._js_version_id is None:
             return self._throw_error(-1, "Failed to extract js_version_id.", s_frame().f_code.co_name)
         if self._css_version_id_0 is None:
