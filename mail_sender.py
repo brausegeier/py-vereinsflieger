@@ -17,12 +17,17 @@ class MailSender():
     # public interface #
     ####################
 
-    def __init__(self, hostname, port, debug = 0):
+    def __init__(self, hostname = None, port = 0, debug = 0):
         self._debug     = debug
         self._hostname  = hostname
         self._port      = port
         self._mail_user = None
         self._mail_pwd  = None
+
+
+    def set_server(self, hostname, port):
+        self._hostname  = hostname
+        self._port      = port
 
 
     def set_credentials(self, user_id, pwd):

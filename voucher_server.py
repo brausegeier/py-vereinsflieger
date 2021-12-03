@@ -31,14 +31,14 @@ class VoucherServer():
 
         self.vf_api = vf_api.VF_API(self._debug)
         self.rc = recaptcha_validate.RecaptchaValidate(self._debug)
-        self.mail = MailSender(self._debug)
+        self.ms = mail_sender.MailSender(self._debug)
         self._lock = Lock()
 
         self.server = http.server.HTTPServer((self._hostname, self._port), ReqHandler)
         self.server.debug = self._debug
         self.server.vf_api = self.vf_api
         self.server.rc = self.rc
-        self.server.mail = self.mail
+        self.server.mail = self.ms
         self.server.vf_lock = self._lock
         self.server._bank_holder = "XXX"
         self.server._bank_iban = "XXX"
@@ -46,7 +46,7 @@ class VoucherServer():
 
 
     def set_banking_data(self, bank_account_holder, iban, bic, bank_name):
-        self.mail.set_banking_data(bank_account_holder, iban, bic, bank_name)
+        self.ms.set_banking_data(bank_account_holder, iban, bic, bank_name)
         self.server._bank_holder = bank_account_holder
         self.server._bank_iban   = iban
         self.server._bank_bic    = bic

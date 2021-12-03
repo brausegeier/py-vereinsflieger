@@ -23,7 +23,9 @@ class Credentials():
         self.bank_bic       = ''
         self.bank_name      = ''
 
-        # Vereinsflieger login
+        # Mailserver login
+        self.mail_server    = ''
+        self.mail_port      = ''
         self.mail_user_id   = ''
         self.mail_user_pwd  = ''
 
