@@ -295,7 +295,7 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
         # Response -> redirect to success page (and display voucher / payment description)
         #
         self.send_response(http.server.HTTPStatus.FOUND)
-        self.send_header('Location','https://brausegeier.de/gutscheinbestellung-erfolgreich/?message='+voucher_message)
+        self.send_header('Location','https://brausegeier.de/gutscheinbestellung-erfolgreich/?message='+quote(voucher_message))
         self.end_headers()
 
 
