@@ -644,7 +644,7 @@ class VF_API():
         voucher_data["frm_firstname"]   = str(self._voucher_data["buyer_firstname"])
         voucher_data["frm_lastname"]    = str(self._voucher_data["buyer_lastname"])
         voucher_data["frm_voucherid"]   = str(self._voucher_data["id"])
-        voucher_data["frm_value"]       = str(self._voucher_data["amount"])+",00"
+        voucher_data["frm_value"]       = str(self._voucher_data["amount"])
         voucher_data["frm_passenger"]   = str(self._voucher_data["guest_firstname"]+" "+self._voucher_data["guest_lastname"])
         voucher_data["frm_title"]       = "Gutschein"
         voucher_data["frm_status"]      = "1" # "Erstellt"

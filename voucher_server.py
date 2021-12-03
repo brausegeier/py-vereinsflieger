@@ -191,7 +191,7 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
         # decode kind into type and amount
         if post_data["voucher_kind"] == "1":
             voucher_data["type"] = "SF"
-            voucher_data["amount"] = "35"
+            voucher_data["amount"] = "35,00"
         elif post_data["voucher_kind"] == "2":
             voucher_data["type"] = "TMG"
             if "voucher_duration" not in post_data.keys():
@@ -209,8 +209,12 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
                     duration = 120
                 if self.server.debug > 0:
                     print("%s: Adjusted voucher duration to: \"%s\"" % (s_frame().f_code.co_name, duration))
+            # update to next full 15 min
             duration = "%d" % (15 * int(ceil(duration / 15.0)))
-            voucher_data["amount"] = duration
+            # calculate price
+            amount = round((110.0 * duration / 60.0), 2)
+            # converto to string with ',' instead of '.' as separator
+            voucher_data["amount"] = ("%d,%d" % (amount, (amount-int(amount))))
 
         # contact info
         voucher_data["buyer_firstname"] = post_data["buyer_firstname"]
@@ -296,10 +300,12 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
         #
         if voucher["type"] == "SF":
             voucher_type = "Segelflug"
-            voucher_amount = 35
         elif voucher["type"] == "TMG":
-            voucher_minutes = int(voucher["amount"].split(",")[0])
-            voucher_amount = 110.00 * (voucher_minutes / 60.00)
+            # convert euros with ',' separator to value with '.' separator
+            voucher_euro = int(voucher["amount"].split(",")[0])
+            voucher_euro = voucher_euro + (int(voucher["amount"].split(",")[1]) / 100)
+            voucher_minutes = 60.0 * voucher_euro / 110.0
+            voucher_minutes = int(round(voucher_minutes, 0))
             voucher_type = ("%d minütigen Motorsegler" % voucher_minutes)
         else:
             voucher_type = "!Fehler!"
@@ -307,14 +313,16 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
 
         voucher_message = ('''
         Hallo %s %s,</br>
-        Sie haben einen %s Gutschein für %s %s bestellt. Bitte überweisen Sie den Betrag von %.2f Euro auf das folende Konto um den Gutschein zu aktivieren:</br>
+        </br>
+        Sie haben einen %s Gutschein für %s %s bestellt. Bitte überweisen Sie den Betrag von %.2f Euro auf das folgende Konto um den Gutschein zu aktivieren:</br>
+        </br>
         Inhaber: %s</br>
         IBAN: %s</br>
         BIC: %s</br>
         Verwendungszweck: %s</br>
         </br>
         Vielen Dank für Ihre Bestellung!</br>
-        ''' % (voucher["buyer_firstname"], voucher["buyer_lastname"], voucher_type, voucher["guest_firstname"], voucher["guest_lastname"], voucher_amount,
+        ''' % (voucher["buyer_firstname"], voucher["buyer_lastname"], voucher_type, voucher["guest_firstname"], voucher["guest_lastname"], voucher["amount"],
             self.server._bank_holder, self.server._bank_iban, self.server._bank_bic, voucher["id"]))
 
         #
