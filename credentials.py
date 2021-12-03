@@ -21,7 +21,12 @@ class Credentials():
         self.bank_holder    = ''
         self.bank_iban      = ''
         self.bank_bic       = ''
+        self.bank_name      = ''
+
+        # Vereinsflieger login
+        self.mail_user_id   = ''
+        self.mail_user_pwd  = ''
 
         # webserver SSL certificate/keys
-        self.ssl_cert_file = ''
+        self.ssl_cert_file  = ''
 

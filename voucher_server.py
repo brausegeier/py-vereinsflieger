@@ -10,6 +10,7 @@
 import http.server
 import vf_api
 import recaptcha_validate
+import mail_sender
 from ssl          import wrap_socket
 from threading    import Lock
 from base64       import b64encode, b64decode
@@ -30,22 +31,26 @@ class VoucherServer():
 
         self.vf_api = vf_api.VF_API(self._debug)
         self.rc = recaptcha_validate.RecaptchaValidate(self._debug)
+        self.mail = MailSender(self._debug)
         self._lock = Lock()
 
         self.server = http.server.HTTPServer((self._hostname, self._port), ReqHandler)
         self.server.debug = self._debug
         self.server.vf_api = self.vf_api
         self.server.rc = self.rc
+        self.server.mail = self.mail
         self.server.vf_lock = self._lock
         self.server._bank_holder = "XXX"
         self.server._bank_iban = "XXX"
         self.server._bank_bic = "XXX"
 
 
-    def set_banking_data(self, bank_account_holder, iban, bic):
+    def set_banking_data(self, bank_account_holder, iban, bic, bank_name):
+        self.mail.set_banking_data(bank_account_holder, iban, bic, bank_name)
         self.server._bank_holder = bank_account_holder
         self.server._bank_iban   = iban
         self.server._bank_bic    = bic
+        self.server._bank_name   = bank_name
 
 
     def enable_SSL(self, certfile):
@@ -119,6 +124,7 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
         self.server.vf_lock.release()
 
         if valid:
+            self.server.mail.send_voucher_mail(voucher)
             return self._respond_voucher_success(voucher)
 
         return self._respond_internal_error(user_desc="Interner Systemfehler, Gutschein konnte nicht erstellt werden.",
@@ -311,20 +317,24 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
             voucher_type = "!Fehler!"
             voucher_amount = 0
 
-        voucher_message = ('''
-        Hallo %s %s,</br>
-        </br>
-        Sie haben einen %s Gutschein für %s %s bestellt. Bitte überweisen Sie den Betrag von %s Euro auf das folgende Konto um den Gutschein zu aktivieren. Sie
-        erhalten eine separate Rechnung per Email.</br>
-        </br>
-        Inhaber: %s</br>
-        IBAN: %s</br>
-        BIC: %s</br>
-        Verwendungszweck: %s</br>
-        </br>
-        Vielen Dank für Ihre Bestellung!</br>
-        ''' % (voucher["buyer_firstname"], voucher["buyer_lastname"], voucher_type, voucher["guest_firstname"], voucher["guest_lastname"], voucher["amount"],
-            self.server._bank_holder, self.server._bank_iban, self.server._bank_bic, voucher["id"]))
+        voucher_message = ('''Hallo %s %s,</br>
+</br>
+Sie haben einen %s Gutschein für %s %s bestellt. Bitte überweisen Sie den Betrag von %s Euro auf das folgende Konto um den Gutschein zu aktivieren.
+</br>
+Inhaber: %s</br>
+IBAN: %s</br>
+BIC: %s</br>
+Bank: %s</br>
+Verwendungszweck: %s, %s</br>
+</br>
+Sobald wir den Geldeingang bei uns verbuchen, gilt die Gutscheinnummer zusammen mit dem Ausweis des Begünstigten als Zahlungsnachweis und kann gegen
+den entsprechenden Flug vor Ort eingelöst werden.</br>
+</br>
+Falls Sie eine separate Rechnung benötigen, antworten Sie bitte auf die Email.</br>
+</br>
+Selbstverständlich dürfen Sie die Gutscheinnummer auf einem selbst gestalteten Gutschein an die begünstigte Person verschenken.''' % (
+            voucher["buyer_firstname"], voucher["buyer_lastname"], voucher_type, voucher["guest_firstname"], voucher["guest_lastname"], voucher["amount"],
+            self.server._bank_holder, self.server._bank_iban, self.server._bank_bic, self.server._bank_name, voucher["id"], voucher["buyer_lastname"]))
 
         #
         # Response -> redirect to success page (and display voucher / payment description)
