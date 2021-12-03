@@ -1,13 +1,21 @@
-#!/usr/bin/python3
+################################################################################
+# py-vereinsflieger/voucher_server.py
+#
+# Copyright Alexander Bleitner, 2021.
+#
+# License: GPL-3.0-or-later
+################################################################################
+
 
 import http.server
 import vf_api
 import recaptcha_validate
-import ssl
-import threading
-import base64
-
-import inspect, sys
+from ssl          import wrap_socket
+from threading    import Lock
+from base64       import b64encode, b64decode
+from math         import ceil
+from urllib.parse import quote, unquote
+from sys          import _getframe as s_frame
 
 
 class VoucherServer():
@@ -22,7 +30,7 @@ class VoucherServer():
 
         self.vf_api = vf_api.VF_API(self._debug)
         self.rc = recaptcha_validate.RecaptchaValidate(self._debug)
-        self._lock = threading.Lock()
+        self._lock = Lock()
 
         self.server = http.server.HTTPServer((self._hostname, self._port), ReqHandler)
         self.server.debug = self._debug
@@ -32,23 +40,23 @@ class VoucherServer():
 
 
     def enableSSL(self, certfile):
-        self.server.socket = ssl.wrap_socket(self.server.socket, certfile=certfile, server_side=True)
+        self.server.socket = wrap_socket(self.server.socket, certfile=certfile, server_side=True)
 
 
     def run(self):
         if self.server.debug > 0:
-            print("%s: Server running on: \"%s:%d\"" % (sys._getframe().f_code.co_name, self._hostname, self._port))
+            print("%s: Server running on: \"%s:%d\"" % (s_frame().f_code.co_name, self._hostname, self._port))
         self.server.serve_forever()
         if self.server.debug > 0:
-            print("%s: Server stoped." % (sys._getframe().f_code.co_name))
+            print("%s: Server stoped." % (s_frame().f_code.co_name))
 
 
     def single_shot(self):
         if self.server.debug > 0:
-            print("%s: Server running on: \"%s:%d\"" % (sys._getframe().f_code.co_name, self._hostname, self._port))
+            print("%s: Server running on: \"%s:%d\"" % (s_frame().f_code.co_name, self._hostname, self._port))
         self.server.handle_request()
         if self.server.debug > 0:
-            print("%s: Server stoped." % (sys._getframe().f_code.co_name))
+            print("%s: Server stoped." % (s_frame().f_code.co_name))
 
 
 
@@ -81,16 +89,12 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
         [rc_response, voucher_data] = self._extract_data()
         # failed to get required data
         if rc_response is None and voucher_data is None:
-            return self._respond_internal_error(user_desc="Interner Systemfehler.", admin_desc="Could not parse GET request")
-        # voucher data contains errors
-        if rc_response is None:
-            return self._respond_internal_error(user_desc="Interner Systemfehler, Gutscheindaten konnten nicht richtig übermittelt werden.",
-                admin_desc=("Invalid request voucher data: \"%s\"" % voucher_data))
+            return self._respond_internal_error(user_desc="Interner Systemfehler, Gutscheindaten konnten nicht richtig übermittelt werden.", admin_desc="Could not parse GET request")
 
         # check, if the user solved the recaptcha correctly
         [allowed, provider] = self.server.rc.validate(rc_response)
-        #if not allowed:
-        #    return self._respond_recaptcha_failed()
+        if not allowed:
+            return self._respond_recaptcha_failed()
 
         # insert location of the order form into log data
         if provider is not None:
@@ -118,7 +122,7 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
     #######
         if self.server.debug > 2:
             for h in self.headers:
-                print("%s: Header: \"%s\"" % (sys._getframe().f_code.co_name, h))
+                print("%s: Header: \"%s\"" % (s_frame().f_code.co_name, h))
 
         #
         # get content length for various capitalizations
@@ -130,13 +134,13 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
                 content_len = int(self.headers[name])
         if content_len < 0:
             if self.server.debug > 0:
-                print("%s: Invalid request. No \"Content-Length\" in headers: %s" % (sys._getframe().f_code.co_name, self.headers))
+                print("%s: Invalid request. No \"Content-Length\" in headers: %s" % (s_frame().f_code.co_name, self.headers))
             return [None, None]
 
         #
         # read submitted data and split it into individual values
         #
-        data_pairs = str(self.rfile.read(content_len).decode('utf-8')).split('&')
+        data_pairs = str(unquote(self.rfile.read(content_len).decode('utf-8'))).split('&')
         post_data = {}
         for pair in data_pairs:
             data_split = pair.split('=')
@@ -144,10 +148,10 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
             value = data_split[1]
             post_data[key] = value
             if self.server.debug > 3:
-                print("%s: POST data (k,v) pair: \"%s\" = \"%s\"" % (sys._getframe().f_code.co_name, key, value))
+                print("%s: POST data (k,v) pair: \"%s\" = \"%s\"" % (s_frame().f_code.co_name, key, value))
 
         if self.server.debug > 2:
-            print("%s: POST data: \"%s\"" % (sys._getframe().f_code.co_name, post_data))
+            print("%s: POST data: \"%s\"" % (s_frame().f_code.co_name, post_data))
 
         #
         # check and interpret received data
@@ -156,18 +160,18 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
                 "buyer_firstname", "buyer_lastname", "buyer_email",
                 "beneficiary_firstname", "beneficiary_lastname",
                 "beneficiary_street", "beneficiary_zipcode", "beneficiary_city", # not required by script but by policy
-                "recaptcha"]
+                "g-recaptcha-response"]
         key_missing = False
         for key in required_keys:
             if key not in post_data.keys():
                 if self.server.debug > 0:
-                    print("%s: Invalid request. Key \"%s\" missing in POST data." % (sys._getframe().f_code.co_name, key))
+                    print("%s: Invalid request. Key \"%s\" missing in POST data." % (s_frame().f_code.co_name, key))
                 key_missing = True
         if key_missing:
             return [None, None]
 
         # recaptcha id (used as an error flag for voucher data if that is invalid)
-        rc_response = post_data["recaptcha"]
+        rc_response = post_data["g-recaptcha-response"]
         voucher_data = {}
 
         # decode kind into type and amount
@@ -176,10 +180,12 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
             voucher_data["amount"] = "35"
         elif post_data["voucher_kind"] == "2":
             voucher_data["type"] = "TMG"
-            duration = int(post_data["voucher_kind"])
+            duration = int(post_data["voucher_duration"])
             if duration < 30 or duration > 120:
+                if self.server.debug > 0:
+                    print("%s: Invalid voucher duration: \"%s\"" % (s_frame().f_code.co_name, post_data["voucher_duration"]))
                 rc_response = None
-            duration = "%d" % (15 * (((duration-1) / 15)+1))
+            duration = "%d" % (15 * int(ceil(duration / 15.0)))
             voucher_data["amount"] = duration
 
         # contact info
@@ -193,7 +199,7 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
         voucher_data["ip"] = self.address_string()
 
         if self.server.debug > 1:
-            print("%s: Voucher data: \"%s\"" % (sys._getframe().f_code.co_name, voucher_data))
+            print("%s: Voucher data: \"%s\"" % (s_frame().f_code.co_name, voucher_data))
 
         return [rc_response, voucher_data]
 
@@ -202,11 +208,11 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
     def _respond_recaptcha_failed(self):
     #######
         if self.server.debug > 0:
-            print("%s:" % (sys._getframe().f_code.co_name))
-            print("%s: #####################" % (sys._getframe().f_code.co_name))
-            print("%s: # Recaptcha FAILED! #" % (sys._getframe().f_code.co_name))
-            print("%s: #####################" % (sys._getframe().f_code.co_name))
-            print("%s:" % (sys._getframe().f_code.co_name))
+            print("%s:" % (s_frame().f_code.co_name))
+            print("%s: #####################" % (s_frame().f_code.co_name))
+            print("%s: # Recaptcha FAILED! #" % (s_frame().f_code.co_name))
+            print("%s: #####################" % (s_frame().f_code.co_name))
+            print("%s:" % (s_frame().f_code.co_name))
 
         #
         # Response -> redirect to failed page
@@ -220,31 +226,32 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
     def _respond_internal_error(self, user_desc, admin_desc):
     #######
         if self.server.debug > -1:
-            print("%s:" % (sys._getframe().f_code.co_name))
-            print("%s: #########################" % (sys._getframe().f_code.co_name))
-            print("%s: # INTERNAL SERVER ERROR #" % (sys._getframe().f_code.co_name))
-            print("%s: #########################" % (sys._getframe().f_code.co_name))
-            print("%s:" % (sys._getframe().f_code.co_name))
+            print("%s:" % (s_frame().f_code.co_name))
+            print("%s: #########################" % (s_frame().f_code.co_name))
+            print("%s: # INTERNAL SERVER ERROR #" % (s_frame().f_code.co_name))
+            print("%s: #########################" % (s_frame().f_code.co_name))
+            print("%s:" % (s_frame().f_code.co_name))
         if self.server.debug > 1:
-            print("%s: %s" % (sys._getframe().f_code.co_name, voucher))
+            print("%s: User description:  %s" % (s_frame().f_code.co_name, user_desc))
+            print("%s: Admin description: %s" % (s_frame().f_code.co_name, admin_desc))
 
         #
         # pack admin description, which can contain "bad" characters
         #
-        admin_desc = base64.b64encode(admin_desc.encode('utf-8')).decode('ascii')
+        admin_desc = b64encode(admin_desc.encode('utf-8')).decode('ascii')
         if self.server.debug > 0:
-            print("%s: Base64 encoded message: \"%s\"" % (sys._getframe().f_code.co_name, admin_desc))
+            print("%s: Base64 encoded message: \"%s\"" % (s_frame().f_code.co_name, admin_desc))
 
         # decode example:
         if self.server.debug > 0:
-            admin_desc_dec = base64.b64decode(admin_desc.encode('ascii')).decode('utf-8')
-            print("%s: Base64 decode(encoded message): \"%s\"" % (sys._getframe().f_code.co_name, admin_desc_dec))
+            admin_desc_dec = b64decode(admin_desc.encode('ascii')).decode('utf-8')
+            print("%s: Base64 decode(encoded message): \"%s\"" % (s_frame().f_code.co_name, admin_desc_dec))
 
         #
         # Response -> redirect to failed page
         #
         self.send_response(http.server.HTTPStatus.FOUND)
-        self.send_header('Location','https://brausegeier.de/gutscheinbestellung-fehlgeschlagen/?error_desc='+user_desc+'&error_code='+admin_desc)
+        self.send_header('Location','https://brausegeier.de/gutscheinbestellung-fehlgeschlagen/?error_desc='+quote(user_desc)+'&error_code='+admin_desc)
         self.end_headers()
 
 
@@ -252,13 +259,13 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
     def _respond_voucher_success(self, voucher):
     #######
         if self.server.debug > 0:
-            print("%s:" % (sys._getframe().f_code.co_name))
-            print("%s: ######################" % (sys._getframe().f_code.co_name))
-            print("%s: # SUCCESSFUL Voucher #" % (sys._getframe().f_code.co_name))
-            print("%s: ######################" % (sys._getframe().f_code.co_name))
-            print("%s:" % (sys._getframe().f_code.co_name))
+            print("%s:" % (s_frame().f_code.co_name))
+            print("%s: ######################" % (s_frame().f_code.co_name))
+            print("%s: # SUCCESSFUL Voucher #" % (s_frame().f_code.co_name))
+            print("%s: ######################" % (s_frame().f_code.co_name))
+            print("%s:" % (s_frame().f_code.co_name))
         if self.server.debug > 1:
-            print("%s: %s" % (sys._getframe().f_code.co_name, voucher))
+            print("%s: %s" % (s_frame().f_code.co_name, voucher))
 
         #
         # Compose response mesage
@@ -267,8 +274,9 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
             voucher_type = "Segelflug"
             voucher_amount = 35
         elif voucher["type"] == "TMG":
-            voucher_type = ("Motorsegler (%d Minuten)" % voucher["amount"])
-            voucher_amount = int(110 * (voucher["amount"] / 60.0))
+            voucher_minutes = int(voucher["amount"].split(",")[0])
+            voucher_amount = int(110 * (voucher_minutes / 60.0))
+            voucher_type = ("Motorsegler (%d Minuten)" % voucher_minutes)
         else:
             voucher_type = "!Fehler!"
             voucher_amount = 0
@@ -276,7 +284,7 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
         voucher_message = ('''
         Hallo %s %s,</br>
         Sie haben einen %s Gutschein für %s %s bestellt. Bitte überweisen Sie den Betrag von %d Euro auf das folende Konto um den Gutschein zu aktivieren:</br>
-        Inhaber: Breisgauverein für Segelflug e.V.</br>
+        Inhaber: ...</br>
         IBAN: DE ...</br>
         BIC: ...</br>
         Verwendungszweck: %s
@@ -295,14 +303,14 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
     def _respond_error(self, err_code, description):
     #######
         if self.server.debug > 0:
-            print("%s:" % (sys._getframe().f_code.co_name))
-            print("%s: ############################" % (sys._getframe().f_code.co_name))
-            print("%s: # Unspecified SERVER ERROR #" % (sys._getframe().f_code.co_name))
-            print("%s: ############################" % (sys._getframe().f_code.co_name))
-            print("%s:" % (sys._getframe().f_code.co_name))
-            print("%s: ########" % (sys._getframe().f_code.co_name))
-            print("%s: # \"%s\" -> Sending code %d" % (sys._getframe().f_code.co_name, description, error_code))
-            print("%s: ########" % (sys._getframe().f_code.co_name))
+            print("%s:" % (s_frame().f_code.co_name))
+            print("%s: ############################" % (s_frame().f_code.co_name))
+            print("%s: # Unspecified SERVER ERROR #" % (s_frame().f_code.co_name))
+            print("%s: ############################" % (s_frame().f_code.co_name))
+            print("%s:" % (s_frame().f_code.co_name))
+            print("%s: ########" % (s_frame().f_code.co_name))
+            print("%s: # \"%s\" -> Sending code %d" % (s_frame().f_code.co_name, description, error_code))
+            print("%s: ########" % (s_frame().f_code.co_name))
 
         #
         # Response -> just the error code
@@ -315,7 +323,7 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
     def _ignore_request(self, type_str):
     ########
         if self.server.debug > 0:
-            print("%s: Ignoring %s request." % (sys._getframe().f_code.co_name, type_str))
+            print("%s: Ignoring %s request." % (s_frame().f_code.co_name, type_str))
         self.send_response(http.server.HTTPStatus.BAD_REQUEST)
         self.end_headers()
 

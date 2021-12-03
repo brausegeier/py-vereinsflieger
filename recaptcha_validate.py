@@ -1,9 +1,15 @@
-#!/usr/bin/python3
+################################################################################
+# py-vereinsflieger/recaptcha_validate.py
+#
+# Copyright Alexander Bleitner, 2021.
+#
+# License: GPL-3.0-or-later
+################################################################################
 
-import requests
-import json
 
-import inspect, sys
+from requests   import Session, Response
+from json       import loads
+from sys        import _getframe as s_frame
 
 
 class RecaptchaValidate():
@@ -21,7 +27,7 @@ class RecaptchaValidate():
 
 
     def validate(self, challenge_response, request_ip = None):
-        session = requests.Session()
+        session = Session()
 
         post_data = {
                 "secret" : self._secret,
@@ -30,21 +36,24 @@ class RecaptchaValidate():
         if request_ip is not None:
             post_data["remoteip"] = request_ip
             if self._debug > 1:
-                print("%s: Verifying with IP: \"%s\"" % (sys._getframe().f_code.co_name, request_ip))
+                print("%s: Verifying with IP: \"%s\"" % (s_frame().f_code.co_name, request_ip))
+
+        if self._debug > 2:
+            print("%s: POST data: \"%s\"" % (s_frame().f_code.co_name, post_data))
 
         #
         # perform check
         #
         response = session.post('https://www.google.com/recaptcha/api/siteverify', data=post_data)
         response_data = response.content.decode('utf-8')
-        self._debug_page(response, sys._getframe().f_code.co_name, response_data)
+        self._debug_page(response, s_frame().f_code.co_name, response_data)
 
         #
         # extract result
         #
-        result = json.loads(response_data)
+        result = loads(response_data)
         if self._debug > 2:
-            print("%s: Recaptcha response: %s" % (sys._getframe().f_code.co_name, result))
+            print("%s: Recaptcha response: %s" % (s_frame().f_code.co_name, result))
 
         return [result.get('success', None), result.get('hostname', None)]
 
@@ -65,7 +74,7 @@ class RecaptchaValidate():
     #######
     def _debug_page(self, resp, func_name, content = None):
     #######
-        if not isinstance(resp, requests.Response):
+        if not isinstance(resp, Response):
             return self._throw_error(-1, "Invalid response: %s" % (resp), func_name)
 
         if self._debug > 1:
