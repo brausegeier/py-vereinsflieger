@@ -6,6 +6,8 @@
 # License: GPL-3.0-or-later
 ################################################################################
 
+
+import re
 from requests   import Session, Response
 from hashlib    import md5
 from pandas     import DataFrame, read_csv
