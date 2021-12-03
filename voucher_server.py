@@ -88,8 +88,12 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
         # parse data from GET request
         [rc_response, voucher_data] = self._extract_data()
         # failed to get required data
-        if rc_response is None and voucher_data is None:
-            return self._respond_internal_error(user_desc="Interner Systemfehler, Gutscheindaten konnten nicht richtig übermittelt werden.", admin_desc="Could not parse GET request")
+        if rc_response is None:
+            if voucher_data is None:
+                return self._respond_internal_error(user_desc="Interner Systemfehler, Gutscheindaten konnten nicht richtig übermittelt werden.", admin_desc="Could not parse GET request")
+            else:
+                return self._respond_internal_error(user_desc="Interner Systemfehler, Gutscheindaten konnten nicht richtig übermittelt werden.",
+                        admin_desc=voucher_data)
 
         # check, if the user solved the recaptcha correctly
         [allowed, provider] = self.server.rc.validate(rc_response)
@@ -133,9 +137,10 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
             if name in self.headers.keys():
                 content_len = int(self.headers[name])
         if content_len < 0:
+            content_len = "%s: Invalid request. No \"Content-Length\" in headers: %s" % (s_frame().f_code.co_name, self.headers)
             if self.server.debug > 0:
-                print("%s: Invalid request. No \"Content-Length\" in headers: %s" % (s_frame().f_code.co_name, self.headers))
-            return [None, None]
+                print(content_len)
+            return [None, content_len]
 
         #
         # read submitted data and split it into individual values
@@ -156,19 +161,19 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
         #
         # check and interpret received data
         #
-        required_keys = ["voucher_kind", "voucher_duration",
+        required_keys = ["voucher_kind", #"voucher_duration", # not required for "SF"
                 "buyer_firstname", "buyer_lastname", "buyer_email",
                 "beneficiary_firstname", "beneficiary_lastname",
                 "beneficiary_street", "beneficiary_zipcode", "beneficiary_city", # not required by script but by policy
                 "g-recaptcha-response"]
-        key_missing = False
+        key_missing = None
         for key in required_keys:
             if key not in post_data.keys():
+                key_missing = "%s: Invalid request. Key \"%s\" missing in POST data." % (s_frame().f_code.co_name, key)
                 if self.server.debug > 0:
-                    print("%s: Invalid request. Key \"%s\" missing in POST data." % (s_frame().f_code.co_name, key))
-                key_missing = True
-        if key_missing:
-            return [None, None]
+                    print(key_missing)
+        if key_missing is not None:
+            return [None, key_missing]
 
         # recaptcha id (used as an error flag for voucher data if that is invalid)
         rc_response = post_data["g-recaptcha-response"]
@@ -180,11 +185,21 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
             voucher_data["amount"] = "35"
         elif post_data["voucher_kind"] == "2":
             voucher_data["type"] = "TMG"
+            if "voucher_duration" not in post_data.keys():
+                key_missing = "%s: Voucher duration missing in POST request despite type \"TMG\"." % (s_frame().f_code.co_name)
+                if self.server.debug > 0:
+                    print(key_missing)
+                return [None, key_missing]
             duration = int(post_data["voucher_duration"])
             if duration < 30 or duration > 120:
                 if self.server.debug > 0:
                     print("%s: Invalid voucher duration: \"%s\"" % (s_frame().f_code.co_name, post_data["voucher_duration"]))
-                rc_response = None
+                if duration < 30:
+                    duration = 30
+                elif duration > 120:
+                    duration = 120
+                if self.server.debug > 0:
+                    print("%s: Adjusted voucher duration to: \"%s\"" % (s_frame().f_code.co_name, duration))
             duration = "%d" % (15 * int(ceil(duration / 15.0)))
             voucher_data["amount"] = duration
 
@@ -275,7 +290,7 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
             voucher_amount = 35
         elif voucher["type"] == "TMG":
             voucher_minutes = int(voucher["amount"].split(",")[0])
-            voucher_amount = int(110 * (voucher_minutes / 60.0))
+            voucher_amount = 110.00 * (voucher_minutes / 60.00)
             voucher_type = ("Motorsegler (%d Minuten)" % voucher_minutes)
         else:
             voucher_type = "!Fehler!"
@@ -283,7 +298,7 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
 
         voucher_message = ('''
         Hallo %s %s,</br>
-        Sie haben einen %s Gutschein für %s %s bestellt. Bitte überweisen Sie den Betrag von %d Euro auf das folende Konto um den Gutschein zu aktivieren:</br>
+        Sie haben einen %s Gutschein für %s %s bestellt. Bitte überweisen Sie den Betrag von %.2f Euro auf das folende Konto um den Gutschein zu aktivieren:</br>
         Inhaber: ...</br>
         IBAN: DE ...</br>
         BIC: ...</br>
