@@ -576,11 +576,23 @@ class VF_API():
                 self._voucher_data["id"] = voucher_id
                 break
 
-#        #
-#        # add 4 digit alphanumeric "hash" (leave out digits 0,1, and letters O,I)
-#        #
-#        voucher_hash = "A4QV"
-#        self._voucher_data["id"] = self._voucher_data["id"]+"-"+voucher_hash
+        #
+        # add 4 digit alphanumeric "hash" (leave out digits 0,1, and letters O,I)
+        #
+        voucher_date = strftime("%d.%m.%Y")
+        voucher_time = strftime("%H:%M")
+        voucher_seed = strftime("%s")
+        voucher_hash = str(md5((voucher_date+voucher_time+voucher_seed).encode()).hexdigest())
+        voucher_hash.upper()
+        voucher_hash.replace("0", "")
+        voucher_hash.replace("1", "")
+        voucher_hash.replace("O", "")
+        voucher_hash.replace("I", "")
+        voucher_hash = voucher_hash[0:4]
+        self._voucher_data["time"] = voucher_time
+        self._voucher_data["date"] = voucher_date
+        self._voucher_data["hash"] = voucher_hash
+        self._voucher_data["id"] = self._voucher_data["id"]+"-"+voucher_hash
         if self._debug > 0:
             print("%s: New voucher ID: \"%s\"" % (s_frame().f_code.co_name, voucher_id))
 
@@ -656,14 +668,12 @@ class VF_API():
             voucher_provider = self._voucher_data["provider"]
         else:
             voucher_provider = "'py-vereinsflieger.VF_API()'"
-        voucher_date = strftime("%d.%m.%Y")
-        voucher_time = strftime("%H:%M")
         # Optional logging of IP address to prevent / investigate abuse
         voucher_ip = ""
         if "ip" in self._voucher_data.keys():
             voucher_ip = " von IP "+str(self._voucher_data["ip"])
-        voucher_data["frm_comment"] = "Automatisch erstellt über %s am %s um %s Uhr%s. Zahlungsaufforderung gesendet an %s" % (voucher_provider, voucher_date,
-                voucher_time, voucher_ip, voucher_data["frm_email"])
+        voucher_data["frm_comment"] = "Automatisch erstellt über %s am %s um %s Uhr%s. Zahlungsaufforderung gesendet an %s" % (voucher_provider,
+        voucher_data["date"], voucher_data["time"], voucher_ip, voucher_data["frm_email"])
 
 
         if self._debug > 1:
