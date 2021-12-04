@@ -28,6 +28,8 @@ class Credentials():
         self.mail_port      = ''
         self.mail_user_id   = ''
         self.mail_user_pwd  = ''
+        self.mail_bcc       = ''
+        self.mail_reply_to  = ''
 
         # webserver SSL certificate/keys
         self.ssl_cert_file  = ''

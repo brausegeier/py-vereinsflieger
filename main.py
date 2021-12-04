@@ -25,12 +25,14 @@ vs.vf_api.set_credentials(cred().vf_user_id, cred().vf_user_pwd)
 vs.rc.set_credentials(cred().rc_secret)
 vs.ms.set_server(cred().mail_server, cred().mail_port)
 vs.ms.set_credentials(cred().mail_user_id, cred().mail_user_pwd)
+vs.ms.add_bcc_address(cred().mail_bcc])
+vs.ms.add_reply_to_address(cred().mail_reply_to])
 vs.set_banking_data(cred().bank_holder, cred().bank_iban, cred().bank_bic, cred().bank_name)
 
 #
 # Enable SSL
 #
-vs.enable_SSL(cred().ssl_cert_file)
+#vs.enable_SSL(cred().ssl_cert_file)
 
 #
 # Let the server run

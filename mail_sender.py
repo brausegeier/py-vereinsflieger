@@ -18,16 +18,32 @@ class MailSender():
     ####################
 
     def __init__(self, hostname = None, port = 0, debug = 0):
-        self._debug     = debug
-        self._hostname  = hostname
-        self._port      = port
-        self._mail_user = None
-        self._mail_pwd  = None
+        self._debug         = debug
+        self._hostname      = hostname
+        self._port          = port
+        self._mail_user     = None
+        self._mail_pwd      = None
+        self._mail_bcc      = None
+        self._mail_reply_to = None
 
 
     def set_server(self, hostname, port):
         self._hostname  = hostname
         self._port      = port
+
+
+    def add_bcc_address(self, bcc_addr):
+        if self._mail_bcc is not None:
+            self._mail_bcc  = self._mail_bcc + [bcc_addr]
+        else:
+            self._mail_bcc  = [bcc_addr]
+
+
+    def add_reply_to_address(self, reply_to_addr):
+        if self._mail_reply_to is not None:
+            self._mail_reply_to = self._mail_reply_to + [reply_to_addr]
+        else:
+            self._mail_reply_to = [reply_to_addr]
 
 
     def set_credentials(self, user_id, pwd):
@@ -80,7 +96,10 @@ class MailSender():
         msg["Subject"]  = "Brausegeier.de Gutscheinbestellung"
         msg["From"]     = "mitfliegen@brausegeier.de"
         msg["To"]       = voucher["buyer_email"]
-        msg.add_header('reply-to', "schatzmeister@brausegeier.de")
+        if self._mail_bcc is not None:
+            msg["Bcc"]      = self._mail_bcc
+        if self._mail_reply_to is not None:
+            msg.add_header('reply-to', self._mail_reply_to)
         msg_content = ('''Hallo %s %s,
 
 Sie haben einen %s Gutschein für %s %s bestellt. Bitte überweisen Sie den Betrag von %s Euro auf das folgende Konto um den Gutschein zu aktivieren:
