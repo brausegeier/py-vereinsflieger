@@ -536,13 +536,12 @@ class VF_API():
         if self._debug > 1:
             print("%s: Latest voucher ID of type %s: \"%s\"" % (s_frame().f_code.co_name, self._voucher_data["type"], voucher_id))
         
-        voucher_id_split = re.search('^[^-]+-([0-9]+)-([0-9]+)', voucher_id)
+        voucher_id_split = re.search('^[^-]+-([0-9]+)-([0-9]+)(-[2-9A-HJ-NP-Z]*)', voucher_id)
         if voucher_id_split is None:
             return self._throw_error(-3, "Failed to split voucher ID: %s" % (voucher_id), s_frame().f_code.co_name)
         voucher_year = voucher_id_split.group(1)
         voucher_number = voucher_id_split.group(2)
-#        #voucher_id_split = re.search('^[^-]+-([0-9]+)-([0-9]+)-([2-9A-HJ-NP-Z]*)', voucher_id)
-#        #voucher_hash = voucher_id_split.group(3)
+        #voucher_hash = voucher_id_split.group(3)
 
         # 
         # generate next voucher id
