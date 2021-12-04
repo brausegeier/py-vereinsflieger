@@ -583,12 +583,12 @@ class VF_API():
         voucher_time = strftime("%H:%M")
         voucher_seed = strftime("%s")
         voucher_hash = str(md5((voucher_date+voucher_time+voucher_seed).encode()).hexdigest())
-        voucher_hash.upper()
-        voucher_hash.replace("0", "")
-        voucher_hash.replace("1", "")
-        voucher_hash.replace("O", "")
-        voucher_hash.replace("I", "")
-        voucher_hash = voucher_hash[0:4]
+        voucher_hash = voucher_hash.upper()
+        voucher_hash = voucher_hash.replace("0", "")
+        voucher_hash = voucher_hash.replace("1", "")
+        voucher_hash = voucher_hash.replace("O", "")
+        voucher_hash = voucher_hash.replace("I", "")
+        voucher_hash = voucher_hash = voucher_hash[0:4]
         self._voucher_data["time"] = voucher_time
         self._voucher_data["date"] = voucher_date
         self._voucher_data["hash"] = voucher_hash
