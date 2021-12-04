@@ -673,7 +673,7 @@ class VF_API():
         if "ip" in self._voucher_data.keys():
             voucher_ip = " von IP "+str(self._voucher_data["ip"])
         voucher_data["frm_comment"] = "Automatisch erstellt über %s am %s um %s Uhr%s. Zahlungsaufforderung gesendet an %s" % (voucher_provider,
-        voucher_data["date"], voucher_data["time"], voucher_ip, voucher_data["frm_email"])
+        str(self._voucher_data["date"]), str(self._voucher_data["time"]), voucher_ip, voucher_data["frm_email"])
 
 
         if self._debug > 1:
