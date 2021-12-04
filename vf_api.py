@@ -536,7 +536,7 @@ class VF_API():
         if self._debug > 1:
             print("%s: Latest voucher ID of type %s: \"%s\"" % (s_frame().f_code.co_name, self._voucher_data["type"], voucher_id))
         
-        voucher_id_split = re.search('^[^-]+-([0-9]+)-([0-9]+)(-[2-9A-HJ-NP-Z]*)', voucher_id)
+        voucher_id_split = re.search('^[^-]+-([0-9]+)-([0-9]+)([-2-9A-HJ-NP-Z]*)', voucher_id)
         if voucher_id_split is None:
             return self._throw_error(-3, "Failed to split voucher ID: %s" % (voucher_id), s_frame().f_code.co_name)
         voucher_year = voucher_id_split.group(1)
@@ -565,7 +565,7 @@ class VF_API():
                 print("%s: Checking if voucher ID \"%s\" already exists." % (s_frame().f_code.co_name, voucher_id))
 
             # check if it exists already
-            if voucher_id in self._voucher_list.Nummer.values:
+            if any(self._voucher_list.Nummer.str.startswith(voucher_id)):
                 if self._debug > 1:
                     print("%s: Voucher ID \"%s\" is already present." % (s_frame().f_code.co_name, voucher_id))
                 voucher_number = voucher_number + 1
