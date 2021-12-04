@@ -659,6 +659,7 @@ class VF_API():
         voucher_data["frm_passenger"]   = str(self._voucher_data["guest_firstname"]+" "+self._voucher_data["guest_lastname"])
         voucher_data["frm_title"]       = "Gutschein"
         voucher_data["frm_status"]      = "1" # "Erstellt"
+        voucher_data["frm_adduser"]     = "0" # Do NOT create new user account!
         voucher_data["uid_browse"]      = "" # Do not prepopulate voucher user data
         voucher_data["action"]          = "saveclose" # Create the voucher
 
