@@ -25,6 +25,10 @@ class VF_API():
         self._cleanup()
         self._debug = debug
         self._session = Session()
+        self._user_id = None
+        self._user_pwd_hash = None
+        self._invoice_caid = None
+        self._invoice_caid_field = None
 
 
     def set_credentials(self, user_id, user_pwd):
@@ -37,7 +41,12 @@ class VF_API():
         self._user_pwd_hash = md5(user_pwd.encode()).hexdigest()
 
 
-    def create_voucher(self, voucher_data):
+    def set_invoice_ids(self, caid, caid_field):
+        self._invoice_caid = caid
+        self._invoice_caid_field = caid_field
+
+
+    def create_voucher(self, voucher_data, create_invoice = True):
         self._cleanup_voucher()
         if not self._logged_in:
             if self._debug > 0:
@@ -55,6 +64,8 @@ class VF_API():
         self._generate_next_voucher_id()
         self._register_voucher()
         self._validate_voucher()
+        if create_invoice:
+            self._create_invoice()
         res = [self._voucher_valid, self._voucher_data]
         self._cleanup_voucher()
 
@@ -735,6 +746,143 @@ class VF_API():
 
         if self._debug > 0:
             print("%s:" % (s_frame().f_code.co_name))
+
+        return 0
+
+
+    ########
+    def _create_invoice(self):
+    ########
+        if self._error < 0:
+            return self._error
+        if "id" not in self._voucher_data or self._voucher_data["id"] is None:
+            return self._throw_error(-3, "Invalid voucher ID", s_frame().f_code.co_name)
+
+        if self._debug > 0:
+            print("%s: Generating invoice for voucher with ID: \"%s\"" % (s_frame().f_code.co_name, self._voucher_data["id"]))
+
+        #
+        # get preset invoice variables
+        #
+        invoice_page = self._session.get('https://vereinsflieger.de/member/finance/addcashsale.php?frm_urlreferrer=userinvoice.php')
+        invoice_page_data = invoice_page.content.decode('utf-8')
+        self._debug_page(invoice_page, s_frame().f_code.co_name, invoice_page_data)
+
+        # extract input parameters
+        form_inputs = re.findall('<input.*name=\'[^\']+\'.*value=\'[^\']*\'.*[/]*>', invoice_page_data)
+        if self._debug > 3:
+            print("%s: invoice form input query result: %s" % (s_frame().f_code.co_name, form_inputs))
+        # populate input parameters
+        invoice_data = {}
+        for line in form_inputs:
+            single_input = re.search('name=\'([^\']+)\'.*value=\'([^\']*)\'', line)
+            if single_input is None:
+                return self._throw_error(-1, "Failed to extract any input tag.", s_frame().f_code.co_name)
+            if self._debug > 3:
+                print("%s: single input: %s" % (s_frame().f_code.co_name, single_input))
+            invoice_data[single_input.group(1)] = single_input.group(2)
+
+        if self._debug > 2:
+            print("%s: extracted invoice form data: %s" % (s_frame().f_code.co_name, invoice_data))
+
+        #
+        # fill in data
+        #
+        # internal accounting data
+        invoice_data["frm_caid"]                = self._invoice_caid
+        invoice_data["caid_inputinput_field"]   = self._invoice_caid_field
+        # buyer data
+        invoice_data["frm_community"]   = str(self._voucher_data["buyer_firstname"]) + " " + str(self._voucher_data["buyer_lastname"])
+        invoice_data["frm_email"]       = str(self._voucher_data["buyer_email"])
+        # item data
+        if voucher_data["type"] == "TMG":
+            invoice_data["frm_subtitle"]    = "Gutschein Motorsegler"
+            invoice_data["frm_article_1"]   = "Gutschein Motorseglerflug"
+            invoice_data["frm_supid_1"]     = "1579"
+            invoice_data["frm_amount_1"]    = "%0.2f" % (float(self._voucher_data["duration"]) / 60.0)
+        elif voucher_data["type"] == "SF":
+            invoice_data["frm_subtitle"]    = "Gutschein Segelflug"
+            invoice_data["frm_article_1"]   = "Gutschein Segelflug"
+            invoice_data["frm_supid_1"]     = "1578"
+            invoice_data["frm_amount_1"]    = "1.00"
+        invoice_data["frm_total_1"]     = str(self._voucher_data["amount"])
+        # add voucher id
+        invoice_data["frm_callsign_1"]  = "Gutscheinnummer: "+str(self._voucher_data["id"])
+        invoice_data["frm_footer"]      = "TBD: Add footer text"
+        # misc options
+        invoice_data["frm_lockmode"]    = "0"
+        invoice_data["action"]          = "save" # Create the invoice
+
+        if self._debug > 1:
+            print("%s: Submitting creation request." % (s_frame().f_code.co_name))
+            if self._debug > 2:
+                print("%s: Submitting invoice form data: %s" % (s_frame().f_code.co_name, invoice_data))
+
+        #
+        # submit invoice creation request and extract invoice id
+        #
+        invoice_request = self._session.post('https://vereinsflieger.de/member/finance/addcashsale.php?frm_urlreferrer=userinvoice.php', data=invoice_data)
+        self._debug_page(invoice_request, s_frame().f_code.co_name)
+
+        #
+        # check result and extract invoice id
+        #
+        if invoice_request.status_code != 302:
+            return self._throw_error(-7, "Unexpected result code while creating invoce: \"%s\" != 302 (expected)" % (invoice_request.status_code), s_frame().f_code.co_name)
+        
+        #
+        # get redirection link with invoice id
+        #
+        link_names = ['location', 'Location', 'LOCATION']
+        invoice_link = None
+        for name in link_names:
+            if name in self.headers.keys():
+                invoice_link = str(self.headers[name])
+        if invoice_link is None:
+            return self._throw_error(-7, "Could not find response link with invoice id in response headers!", s_frame().f_code.co_name)
+
+        if self.server.debug > 2:
+            print("%s: Found invoice link: \"%s\"" % (s_frame().f_code.co_name, invoice_link))
+
+        #
+        # extract invoice id
+        #
+        id_matches = re.findall('uiid=[0-9]+', invoice_link)
+        if self._debug > 3:
+            print("%s: invoice id query result: %s" % (s_frame().f_code.co_name, id_matches))
+        # get value(s)
+        for match in id_matches:
+            single_match = re.search('uiid=([0-9]+)', match)
+            if single_match is None:
+                return self._throw_error(-1, "Failed to extract invoice id tag.", s_frame().f_code.co_name)
+            if self._debug > 3:
+                print("%s: possible invoice id match: %s" % (s_frame().f_code.co_name, single_match))
+            if str(single_match.group(1)) != "0":
+                self._voucher_data["invoice_id"] = single_match.group(1)
+
+        if "invoice_id" not in self._voucher_data.keys():
+            return self._throw_error(-1, "Failed to extract invoice id from creation response.", s_frame().f_code.co_name)
+
+
+        #
+        # download pdf invoice
+        #
+        invoice_pdf = self._session.get('https://vereinsflieger.de/member/finance/printuserinvoice.php?uiid='+str(self._voucher_data["invoice_id"]))
+        self._debug_page(invoice_pdf, s_frame().f_code.co_name)
+        invoice_pdf_encoding = re.search('\'Content-Type\': \'application/octet-stream;charset=([a-zA-Z0-9-]+);\', \'Content-Length\'', str(invoice_pdf.headers))
+        if invoice_pdf_encoding is None:
+            return self._throw_error(-1, "Failed to extract encoding.", s_frame().f_code.co_name)
+        invoice_pdf_encoding = invoice_pdf_encoding.group(1)
+
+        if self._debug > 2:
+            print("%s: Invoice PDF encoding: \"%s\"" % (s_frame().f_code.co_name, invoice_pdf_encoding))
+        if self._debug > 0:
+            print("%s: Decoding invoice PDF" % (s_frame().f_code.co_name))
+
+        #
+        # decode data
+        #
+        self._voucher_data["invoice_pdf"] = StringIO(invoice_pdf.content.decode(invoice_pdf_encoding))
 
         return 0
 

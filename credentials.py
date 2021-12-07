@@ -31,6 +31,10 @@ class Credentials():
         self.mail_bcc       = ''
         self.mail_reply_to  = ''
 
+        # Vereinsflieger invoice data
+        self.vf_caid        = ''
+        self.vf_caid_field  = ''
+
         # webserver SSL certificate/keys
         self.ssl_cert_file  = ''
 

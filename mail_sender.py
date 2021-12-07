@@ -113,8 +113,7 @@ Verwendungszweck: %s, %s
 Sobald wir den Geldeingang bei uns verbuchen, gilt die Gutscheinnummer zusammen mit dem Ausweis des Begünstigten als Zahlungsnachweis und kann gegen den
 entsprechenden Flug vor Ort eingelöst werden.
 
-Falls Sie eine separate Rechnung benötigen, antworten Sie bitte auf diese Email und senden Sie Ihre vollständige Adresse an unseren Schatzmeister Jan
-Schandel <mailto:schatzmeister@brausegeier.de>.
+Falls Sie Fragen zur Rechnung haben, antworten Sie bitte auf diese Email und senden Sie Ihre vollständige Adresse an unseren Schatzmeister Jan Schandel <mailto:schatzmeister@brausegeier.de>.
 
 Selbstverständlich dürfen Sie die Gutscheinnummer auf einem selbst gestalteten Gutschein an die begünstigte Person verschenken.
 
@@ -139,6 +138,14 @@ Instagram: Breisgauverein_Segelflug
             voucher["buyer_firstname"], voucher["buyer_lastname"], voucher_type, voucher["guest_firstname"], voucher["guest_lastname"], voucher["amount"], 
             self._bank_holder, self._bank_iban, self._bank_bic, self._bank_name, voucher["id"], voucher["buyer_lastname"]))
         msg.set_content(msg_content)
+
+        # if present, add invoice as attachment
+        if "invoice_pdf" in voucher.keys():
+            if "invoice_id" in voucher.keys():
+                filename = "Rechnung_"+str(voucher["invoice_id"])+".pdf"
+            else:
+                filename = "Rechnung.pdf"
+            msg.add_attachment(voucher["invoice_pdf"].read(), maintype='application', subtype='pdf', filename=filename)
 
         return msg
 

@@ -153,8 +153,6 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
                 content_len = int(self.headers[name])
         if content_len < 0:
             content_len = "%s: Invalid request. No \"Content-Length\" in headers: %s" % (s_frame().f_code.co_name, self.headers)
-            if self.server.debug > 0:
-                print(content_len)
             return [None, content_len]
 
         #
@@ -221,6 +219,7 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
             amount = round((110.0 * duration / 60.0), 2)
             # converto to string with ',' instead of '.' as separator
             voucher_data["amount"] = ("%d,%02d" % (int(amount), int(100*(amount-int(amount)))))
+            voucher_data["duration"] = int(duration)
 
         # contact info
         voucher_data["buyer_firstname"] = post_data["buyer_firstname"]
