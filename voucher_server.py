@@ -112,7 +112,7 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
             if voucher_data is None:
                 return self._respond_internal_error(user_desc="Interner Systemfehler, Gutscheindaten konnten nicht richtig übermittelt werden.", admin_desc="Could not parse GET request")
             else:
-                return self._respond_internal_error(user_desc=voucher_data, admin_desc="Input data error: "+voucher_data)
+                return self._respond_input_data_error(voucher_data)
 
         # check, if the user solved the recaptcha correctly
         [allowed, provider] = self.server.rc.validate(rc_response)
@@ -319,6 +319,41 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
         #
         self.send_response(http.server.HTTPStatus.FOUND)
         self.send_header('Location','https://brausegeier.de/gutscheinbestellung-fehlgeschlagen/?error_desc='+quote(user_desc)+'&error_code='+admin_desc)
+        self.end_headers()
+
+
+    #######
+    def _respond_input_data_error(self, desc):
+    #######
+        admin_desc = desc
+        user_desc = desc.split(": Invalid request. ")[1]
+        if self.server.debug > -1:
+            print("%s:" % (s_frame().f_code.co_name))
+            print("%s: ####################" % (s_frame().f_code.co_name))
+            print("%s: # INPUT DATA ERROR #" % (s_frame().f_code.co_name))
+            print("%s: ####################" % (s_frame().f_code.co_name))
+            print("%s:" % (s_frame().f_code.co_name))
+        if self.server.debug > 1:
+            print("%s: User description:  %s" % (s_frame().f_code.co_name, user_desc))
+            print("%s: Admin description: %s" % (s_frame().f_code.co_name, admin_desc))
+
+        #
+        # pack admin description, which can contain "bad" characters
+        #
+        admin_desc = b64encode(admin_desc.encode('utf-8')).decode('ascii')
+        if self.server.debug > 0:
+            print("%s: Base64 encoded message: \"%s\"" % (s_frame().f_code.co_name, admin_desc))
+
+        # decode example:
+        if self.server.debug > 0:
+            admin_desc_dec = b64decode(admin_desc.encode('ascii')).decode('utf-8')
+            print("%s: Base64 decode(encoded message): \"%s\"" % (s_frame().f_code.co_name, admin_desc_dec))
+
+        #
+        # Response -> redirect to failed page
+        #
+        self.send_response(http.server.HTTPStatus.FOUND)
+        self.send_header('Location','https://brausegeier.de/gutscheinbestellung-eingabe-falsch/?error_desc='+quote(user_desc)+'&error_code='+admin_desc)
         self.end_headers()
 
 
