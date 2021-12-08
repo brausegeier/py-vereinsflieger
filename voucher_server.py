@@ -187,6 +187,9 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
                     print(key_missing)
         if key_missing is not None:
             return [None, key_missing]
+        #
+        # TODO: perform basic sanity checks on input data!
+        #
 
         # recaptcha id (used as an error flag for voucher data if that is invalid)
         rc_response = post_data["g-recaptcha-response"]
