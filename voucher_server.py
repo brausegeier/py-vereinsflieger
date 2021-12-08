@@ -108,6 +108,11 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
             else:
                 return self._respond_internal_error(user_desc="Interner Systemfehler, Gutscheindaten konnten nicht richtig übermittelt werden.",
                         admin_desc=voucher_data)
+        elif rc_response == "Data_Error":
+            if voucher_data is None:
+                return self._respond_internal_error(user_desc="Interner Systemfehler, Gutscheindaten konnten nicht richtig übermittelt werden.", admin_desc="Could not parse GET request")
+            else:
+                return self._respond_internal_error(user_desc=voucher_data, admin_desc="Input data error: "+voucher_data)
 
         # check, if the user solved the recaptcha correctly
         [allowed, provider] = self.server.rc.validate(rc_response)
@@ -186,6 +191,9 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
                 if self.server.debug > 0:
                     print(key_missing)
 
+        if key_missing is not None:
+            return [None, key_missing]
+
         #
         # perform basic sanity checks on input data
         # names, street and city at least 2 chars long
@@ -208,11 +216,11 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
             key_missing = "%s: Invalid request. Value of \"beneficiary_city\" is too short: \"%s\"" % (s_frame().f_code.co_name, post_data["beneficiary_city"])
         if len(str(post_data["beneficiary_zipcode"])) != 5 or int(post_data["beneficiary_zipcode"]) < 1067:
             key_missing = "%s: Invalid request. Value of \"beneficiary_zipcode\" is invalid: \"%s\"" % (s_frame().f_code.co_name, post_data["beneficiary_zipcode"])
-        if len(str(post_data["buyer_email"])) < 7 or not "@" in str(post_data["buyer_email"]) or not "." in str(post_data["buyer_email"]).split("@")[2]:
+        if len(str(post_data["buyer_email"])) < 7 or not "@" in str(post_data["buyer_email"]) or not "." in str(post_data["buyer_email"]).split("@")[1]:
             key_missing = "%s: Invalid request. Value of \"buyer_email\" is invalid: \"%s\"" % (s_frame().f_code.co_name, post_data["buyer_email"])
 
         if key_missing is not None:
-            return [None, key_missing]
+            return ["Data_Error", key_missing]
 
         # recaptcha id (used as an error flag for voucher data if that is invalid)
         rc_response = post_data["g-recaptcha-response"]
