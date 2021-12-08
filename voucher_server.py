@@ -185,11 +185,34 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
                 key_missing = "%s: Invalid request. Key \"%s\" missing in POST data." % (s_frame().f_code.co_name, key)
                 if self.server.debug > 0:
                     print(key_missing)
+
+        #
+        # perform basic sanity checks on input data
+        # names, street and city at least 2 chars long
+        # 01067 <= zip <= 99999
+        # email has to contain @ and . afterwards
+        #
+        if str(post_data["voucher_kind"]) != "1" and str(post_data["voucher_kind"]) != "2":
+            key_missing = "%s: Invalid request. Value of \"voucher_kind\": \"%s\"" % (s_frame().f_code.co_name, post_data["voucher_kind"])
+        if len(str(post_data["buyer_firstname"])) < 2:
+            key_missing = "%s: Invalid request. Value of \"buyer_firstname\" is too short: \"%s\"" % (s_frame().f_code.co_name, post_data["buyer_firstname"])
+        if len(str(post_data["buyer_lastname"])) < 2:
+            key_missing = "%s: Invalid request. Value of \"buyer_lastname\" is too short: \"%s\"" % (s_frame().f_code.co_name, post_data["buyer_lastname"])
+        if len(str(post_data["beneficiary_firstname"])) < 2:
+            key_missing = "%s: Invalid request. Value of \"beneficiary_firstname\" is too short: \"%s\"" % (s_frame().f_code.co_name, post_data["beneficiary_firstname"])
+        if len(str(post_data["beneficiary_lastname"])) < 2:
+            key_missing = "%s: Invalid request. Value of \"beneficiary_lastname\" is too short: \"%s\"" % (s_frame().f_code.co_name, post_data["beneficiary_lastname"])
+        if len(str(post_data["beneficiary_street"])) < 2:
+            key_missing = "%s: Invalid request. Value of \"beneficiary_street\" is too short: \"%s\"" % (s_frame().f_code.co_name, post_data["beneficiary_street"])
+        if len(str(post_data["beneficiary_city"])) < 2:
+            key_missing = "%s: Invalid request. Value of \"beneficiary_city\" is too short: \"%s\"" % (s_frame().f_code.co_name, post_data["beneficiary_city"])
+        if len(str(post_data["beneficiary_zip"])) != 5 or int(post_data["beneficiary_zip"]) < 1067:
+            key_missing = "%s: Invalid request. Value of \"beneficiary_zip\" is invalid: \"%s\"" % (s_frame().f_code.co_name, post_data["beneficiary_zip"])
+        if len(str(post_data["buyer_email"])) < 7 or not "@" in str(post_data["buyer_email"]) or not "." in str(post_data["buyer_email"]).split("@")[2]:
+            key_missing = "%s: Invalid request. Value of \"buyer_email\" is invalid: \"%s\"" % (s_frame().f_code.co_name, post_data["buyer_email"])
+
         if key_missing is not None:
             return [None, key_missing]
-        #
-        # TODO: perform basic sanity checks on input data!
-        #
 
         # recaptcha id (used as an error flag for voucher data if that is invalid)
         rc_response = post_data["g-recaptcha-response"]
