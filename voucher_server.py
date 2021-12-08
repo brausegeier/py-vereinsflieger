@@ -206,8 +206,8 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
             key_missing = "%s: Invalid request. Value of \"beneficiary_street\" is too short: \"%s\"" % (s_frame().f_code.co_name, post_data["beneficiary_street"])
         if len(str(post_data["beneficiary_city"])) < 2:
             key_missing = "%s: Invalid request. Value of \"beneficiary_city\" is too short: \"%s\"" % (s_frame().f_code.co_name, post_data["beneficiary_city"])
-        if len(str(post_data["beneficiary_zip"])) != 5 or int(post_data["beneficiary_zip"]) < 1067:
-            key_missing = "%s: Invalid request. Value of \"beneficiary_zip\" is invalid: \"%s\"" % (s_frame().f_code.co_name, post_data["beneficiary_zip"])
+        if len(str(post_data["beneficiary_zipcode"])) != 5 or int(post_data["beneficiary_zipcode"]) < 1067:
+            key_missing = "%s: Invalid request. Value of \"beneficiary_zipcode\" is invalid: \"%s\"" % (s_frame().f_code.co_name, post_data["beneficiary_zipcode"])
         if len(str(post_data["buyer_email"])) < 7 or not "@" in str(post_data["buyer_email"]) or not "." in str(post_data["buyer_email"]).split("@")[2]:
             key_missing = "%s: Invalid request. Value of \"buyer_email\" is invalid: \"%s\"" % (s_frame().f_code.co_name, post_data["buyer_email"])
 
