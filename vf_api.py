@@ -840,7 +840,8 @@ Sofern nicht bereits geschehen überweisen Sie bitte den offenen Betrag innerhal
         # check result and extract invoice id
         #
         uiid_matches = re.findall('uiid=[0-9]+', invoice_request.url)
-        print("matches: %s" % uiid_matches)
+        if self._debug > 3:
+            print("%s: uiid match: %s" % (s_frame().f_code.co_name, uiid_matches))
         for match in uiid_matches:
             single_match = re.search('uiid=([0-9]+)', match)
             if single_match is None:
@@ -849,7 +850,8 @@ Sofern nicht bereits geschehen überweisen Sie bitte den offenen Betrag innerhal
                 print("%s: single uiid match: %s" % (s_frame().f_code.co_name, single_match))
             uiid = int(single_match.group(1))
             if uiid > 0:
-                print("UIID: %s" % str(uiid))
+                if self._debug > 2:
+                    print("%s: Found invoice uiid: \"%s\"" % (s_frame().f_code.co_name, str(uuid)))
                 self._voucher_data["invoice_uiid"] = str(uiid)
             elif uiid == 0:
                 pass
