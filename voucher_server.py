@@ -151,7 +151,7 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
         for name in length_names:
             if name in self.headers.keys():
                 content_len = int(self.headers[name])
-        if content_len < 0:
+        if content_len <= 0:
             content_len = "%s: Invalid request. No \"Content-Length\" in headers: %s" % (s_frame().f_code.co_name, self.headers)
             return [None, content_len]
 
@@ -298,7 +298,12 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
             print("%s: ######################" % (s_frame().f_code.co_name))
             print("%s:" % (s_frame().f_code.co_name))
         if self.server.debug > 1:
-            print("%s: %s" % (s_frame().f_code.co_name, voucher))
+            if "invoice_pdf" in voucher.keys():
+                voucher_copy = voucher.copy()
+                voucher_copy["invoice_pdf"] = '<PDF contents omitted>'
+                print("%s: %s" % (s_frame().f_code.co_name, voucher_copy))
+            else:
+                print("%s: %s" % (s_frame().f_code.co_name, voucher))
 
         #
         # Compose response mesage

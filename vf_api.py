@@ -795,23 +795,35 @@ class VF_API():
         invoice_data["frm_community"]   = str(self._voucher_data["buyer_firstname"]) + " " + str(self._voucher_data["buyer_lastname"])
         invoice_data["frm_email"]       = str(self._voucher_data["buyer_email"])
         # item data
-        if voucher_data["type"] == "TMG":
+        if self._voucher_data["type"] == "TMG":
             invoice_data["frm_subtitle"]    = "Gutschein Motorsegler"
             invoice_data["frm_article_1"]   = "Gutschein Motorseglerflug"
             invoice_data["frm_supid_1"]     = "1579"
             invoice_data["frm_amount_1"]    = "%0.2f" % (float(self._voucher_data["duration"]) / 60.0)
-        elif voucher_data["type"] == "SF":
+        elif self._voucher_data["type"] == "SF":
             invoice_data["frm_subtitle"]    = "Gutschein Segelflug"
             invoice_data["frm_article_1"]   = "Gutschein Segelflug"
             invoice_data["frm_supid_1"]     = "1578"
             invoice_data["frm_amount_1"]    = "1.00"
         invoice_data["frm_total_1"]     = str(self._voucher_data["amount"])
+        invoice_data["frm_fdid_1"]      = "0"
+        invoice_data["frm_counter_1"]   = ""
         # add voucher id
         invoice_data["frm_callsign_1"]  = "Gutscheinnummer: "+str(self._voucher_data["id"])
-        invoice_data["frm_footer"]      = "TBD: Add footer text"
+        # footer text
+        invoice_data["frm_footer"]      = '''Der Breisgauverein für Segelflug bedankt sich recht herzlich und wünscht allzeit einen guten Flug.
+
+Sofern nicht bereits geschehen überweisen Sie bitte den offenen Betrag innerhalb von 14 Tagen auf das oben angegebene Konto.'''
+        # do NOT finalize invoice -> can still be edited afterwards
+        if "frm_lockmode" in invoice_data:
+            del invoice_data["frm_lockmode"]
         # misc options
-        invoice_data["frm_lockmode"]    = "0"
-        invoice_data["action"]          = "save" # Create the invoice
+        invoice_data["frm_invoicedate"] = str(self._voucher_data["date"])
+        invoice_data["frm_servicedate"] = ""
+        invoice_data["frm_invoiceusertype"]    = "1"
+        invoice_data["frm_uid"]         = "0"
+        invoice_data["frm_uidname"]     = ""
+        invoice_data["action"]          = "" # Create the invoice
 
         if self._debug > 1:
             print("%s: Submitting creation request." % (s_frame().f_code.co_name))
@@ -821,68 +833,49 @@ class VF_API():
         #
         # submit invoice creation request and extract invoice id
         #
-        invoice_request = self._session.post('https://vereinsflieger.de/member/finance/addcashsale.php?frm_urlreferrer=userinvoice.php', data=invoice_data)
+        invoice_request = self._session.post('https://vereinsflieger.de/member/finance/addcashsale.php?frm_urlreferer=userinvoice.php', data=invoice_data)
         self._debug_page(invoice_request, s_frame().f_code.co_name)
 
         #
         # check result and extract invoice id
         #
-        if invoice_request.status_code != 302:
-            return self._throw_error(-7, "Unexpected result code while creating invoce: \"%s\" != 302 (expected)" % (invoice_request.status_code), s_frame().f_code.co_name)
-        
-        #
-        # get redirection link with invoice id
-        #
-        link_names = ['location', 'Location', 'LOCATION']
-        invoice_link = None
-        for name in link_names:
-            if name in self.headers.keys():
-                invoice_link = str(self.headers[name])
-        if invoice_link is None:
-            return self._throw_error(-7, "Could not find response link with invoice id in response headers!", s_frame().f_code.co_name)
-
-        if self.server.debug > 2:
-            print("%s: Found invoice link: \"%s\"" % (s_frame().f_code.co_name, invoice_link))
-
-        #
-        # extract invoice id
-        #
-        id_matches = re.findall('uiid=[0-9]+', invoice_link)
-        if self._debug > 3:
-            print("%s: invoice id query result: %s" % (s_frame().f_code.co_name, id_matches))
-        # get value(s)
-        for match in id_matches:
+        uiid_matches = re.findall('uiid=[0-9]+', invoice_request.url)
+        print("matches: %s" % uiid_matches)
+        for match in uiid_matches:
             single_match = re.search('uiid=([0-9]+)', match)
             if single_match is None:
-                return self._throw_error(-1, "Failed to extract invoice id tag.", s_frame().f_code.co_name)
+                return self._throw_error(-1, "Failed to extract any uiid.", s_frame().f_code.co_name)
             if self._debug > 3:
-                print("%s: possible invoice id match: %s" % (s_frame().f_code.co_name, single_match))
-            if str(single_match.group(1)) != "0":
-                self._voucher_data["invoice_id"] = single_match.group(1)
+                print("%s: single uiid match: %s" % (s_frame().f_code.co_name, single_match))
+            uiid = int(single_match.group(1))
+            if uiid > 0:
+                print("UIID: %s" % str(uiid))
+                self._voucher_data["invoice_uiid"] = str(uiid)
+            elif uiid == 0:
+                pass
+            else:
+                return self._throw_error(-8, "Received ill invoice uid: \"%s\"" % (uid), s_frame().f_code.co_name)
 
-        if "invoice_id" not in self._voucher_data.keys():
+        if "invoice_uiid" not in self._voucher_data.keys():
             return self._throw_error(-1, "Failed to extract invoice id from creation response.", s_frame().f_code.co_name)
-
 
         #
         # download pdf invoice
         #
-        invoice_pdf = self._session.get('https://vereinsflieger.de/member/finance/printuserinvoice.php?uiid='+str(self._voucher_data["invoice_id"]))
+        invoice_pdf = self._session.get('https://vereinsflieger.de/member/finance/printuserinvoice.php?uiid='+str(self._voucher_data["invoice_uiid"]))
         self._debug_page(invoice_pdf, s_frame().f_code.co_name)
-        invoice_pdf_encoding = re.search('\'Content-Type\': \'application/octet-stream;charset=([a-zA-Z0-9-]+);\', \'Content-Length\'', str(invoice_pdf.headers))
-        if invoice_pdf_encoding is None:
-            return self._throw_error(-1, "Failed to extract encoding.", s_frame().f_code.co_name)
-        invoice_pdf_encoding = invoice_pdf_encoding.group(1)
-
-        if self._debug > 2:
-            print("%s: Invoice PDF encoding: \"%s\"" % (s_frame().f_code.co_name, invoice_pdf_encoding))
-        if self._debug > 0:
-            print("%s: Decoding invoice PDF" % (s_frame().f_code.co_name))
-
-        #
-        # decode data
-        #
-        self._voucher_data["invoice_pdf"] = StringIO(invoice_pdf.content.decode(invoice_pdf_encoding))
+        # check file type
+        if invoice_pdf.headers.get('Content-Type') == 'application/pdf':
+            self._voucher_data["invoice_pdf"] = invoice_pdf.content
+            # extract filename / invoice id
+            match_str = invoice_pdf.headers.get('Content-Disposition')
+            invoice_id = re.search('filename=Rechnung_([0-9]+).pdf', match_str)
+            print("id match: %s" % invoice_id)
+            if invoice_id is not None:
+                invoice_id = invoice_id.group(1)
+                self._voucher_data["invoice_id"] = str(invoice_id)
+        else:
+            return self._throw_error(-1, "Failed to download invoice with uiid \"%s\"." % (self._voucher_data["invoice_uiid"]), s_frame().f_code.co_name)
 
         return 0
 
