@@ -140,6 +140,7 @@ class VF_API():
         self._css_version_id_0 = None
         self._css_version_id_1 = None
         self._signin_js_id = None
+        self._signin_js_file = None
         self._pwdsalt_site = None
         self._magic_id_0 = None
         self._magic_id_1 = None
@@ -219,7 +220,8 @@ class VF_API():
         self._js_version_id     = re.search('<script src="/js/default\?v=(.+)"></script>', login_page_data)
         self._css_version_id_0  = re.search('href="/css/publicDefault\?v=(.+)" />', login_page_data)
         self._css_version_id_1  = re.search('href="/signin.css\?v=(.+)" />', login_page_data)
-        self._signin_js_id      = re.search('<script src="signinjs\?v=(.+)"></script>', login_page_data)
+        self._signin_js_id      = re.search('<script src="([a-zA-Z]+)\?v=(.+)"></script>', login_page_data)
+
         if self._js_version_id is None:
             return self._throw_error(-1, "Failed to extract js_version_id.", s_frame().f_code.co_name)
         if self._css_version_id_0 is None:
@@ -231,7 +233,8 @@ class VF_API():
         self._js_version_id     = self._js_version_id.group(1)
         self._css_version_id_0  = self._css_version_id_0.group(1)
         self._css_version_id_1  = self._css_version_id_1.group(1)
-        self._signin_js_id      = self._signin_js_id.group(1)
+        self._signin_js_file    = self._signin_js_id.group(1)
+        self._signin_js_id      = self._signin_js_id.group(2)
 
         #
         # check, if those various version ids were successfully extracted
@@ -242,6 +245,8 @@ class VF_API():
             return self._throw_error(-2, "No CSS version ID 0 found!", s_frame().f_code.co_name)
         if self._css_version_id_1 is None:
             return self._throw_error(-2, "No CSS version ID 1 found!", s_frame().f_code.co_name)
+        if self._signin_js_file is None:
+            return self._throw_error(-2, "No signin JS file found!", s_frame().f_code.co_name)
         if self._signin_js_id is None:
             return self._throw_error(-2, "No signin JS ID found!", s_frame().f_code.co_name)
 
@@ -287,12 +292,12 @@ class VF_API():
         if self._debug > 2:
             print("%s: Initial input form pwdsalt: \"%s\"" % (s_frame().f_code.co_name, self._input_kv["pwdsalt"]))
         if self._debug > 0:
-            print("%s: Getting /signinjs with ID \"%s\"" % (s_frame().f_code.co_name, self._signin_js_id))
+            print("%s: Getting /signinjs (%s) with ID \"%s\"" % (s_frame().f_code.co_name, self._signin_js_file, self._signin_js_id))
 
         #
         # get signin_js file
         #
-        signin_js = self._session.get('https://vereinsflieger.de/signinjs?v='+self._signin_js_id)
+        signin_js = self._session.get('https://vereinsflieger.de/'+self._signin_js_file+'?v='+self._signin_js_id)
         signin_js_data = signin_js.content.decode('utf-8')
         self._debug_page(signin_js, s_frame().f_code.co_name, signin_js_data)
 
