@@ -139,7 +139,7 @@ werden.
 Instagram: Breisgauverein_Segelflug
 <https://instagram.com/breisgauverein_segelflug>''' % (
             voucher["buyer_firstname"], voucher["buyer_lastname"], voucher_type, voucher["guest_firstname"], voucher["guest_lastname"], voucher["amount"], 
-            self._bank_holder, self._bank_iban, self._bank_bic, self._bank_name, voucher["id"], voucher["buyer_lastname"], self._mail_reply_to, info_tmg))
+            self._bank_holder, self._bank_iban, self._bank_bic, self._bank_name, voucher["id"], voucher["buyer_lastname"], info_tmg, self._mail_reply_to))
         msg.set_content(msg_content)
 
         # if present, add invoice as attachment
