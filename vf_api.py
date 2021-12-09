@@ -775,7 +775,7 @@ class VF_API():
         #
         # get preset invoice variables
         #
-        invoice_page = self._session.get('https://vereinsflieger.de/member/finance/addcashsale.php?frm_urlreferrer=userinvoice.php')
+        invoice_page = self._session.get('https://vereinsflieger.de/member/finance/addcashsale.php?frm_urlreferer=userinvoice.php')
         invoice_page_data = invoice_page.content.decode('utf-8')
         self._debug_page(invoice_page, s_frame().f_code.co_name, invoice_page_data)
 
@@ -824,6 +824,15 @@ class VF_API():
         invoice_data["frm_counter_1"]   = ""
         # add voucher id
         invoice_data["frm_callsign_1"]  = "Gutscheinnummer: "+str(self._voucher_data["id"])
+        # data of unused items
+        for idx in range(2, 100):
+            invoice_data["frm_article_%d" % idx]  = ""
+            invoice_data["frm_supid_%d" % idx]    = "0"
+            invoice_data["frm_amount_%d" % idx]   = ""
+            invoice_data["frm_total_%d" % idx]    = ""
+            invoice_data["frm_fdid_%d" % idx]     = "0"
+            invoice_data["frm_counter_%d" % idx]  = ""
+            invoice_data["frm_callsign_%d" % idx] = ""
         # footer text
         invoice_data["frm_footer"]      = '''Der Breisgauverein für Segelflug bedankt sich recht herzlich und wünscht allzeit einen guten Flug.
 
@@ -837,7 +846,7 @@ Sofern nicht bereits geschehen überweisen Sie bitte den offenen Betrag innerhal
         invoice_data["frm_invoiceusertype"]    = "1"
         invoice_data["frm_uid"]         = "0"
         invoice_data["frm_uidname"]     = ""
-        invoice_data["action"]          = "" # Create the invoice
+        invoice_data["action"]          = "save" # Create the invoice
 
         if self._debug > 1:
             print("%s: Submitting creation request." % (s_frame().f_code.co_name))
@@ -865,7 +874,7 @@ Sofern nicht bereits geschehen überweisen Sie bitte den offenen Betrag innerhal
             uiid = int(single_match.group(1))
             if uiid > 0:
                 if self._debug > 2:
-                    print("%s: Found invoice uiid: \"%s\"" % (s_frame().f_code.co_name, str(uuid)))
+                    print("%s: Found invoice uiid: \"%s\"" % (s_frame().f_code.co_name, str(uiid)))
                 self._voucher_data["invoice_uiid"] = str(uiid)
             elif uiid == 0:
                 pass

@@ -80,6 +80,7 @@ class MailSender():
         # convert type/amount into human readable form
         if voucher["type"] == "SF":
             voucher_type = "Segelflug"
+            info_tmg = ""
         elif voucher["type"] == "TMG":
             # convert euros with ',' separator to value with '.' separator
             voucher_euro = int(voucher["amount"].split(",")[0])
@@ -87,9 +88,11 @@ class MailSender():
             voucher_minutes = 60.0 * voucher_euro / 110.0
             voucher_minutes = int(round(voucher_minutes, 0))
             voucher_type = ("%d minütigen Motorsegler" % voucher_minutes)
+            info_tmg = "\nUm einen Termin für den Flug zu vereinbaren, antworten Sie bitte auf diese Email an <mailto:mitfliegen@brausegeier.de>\n"
         else:
             voucher_type = "!Fehler!"
             voucher_amount = 0
+            info_tmg = ""
 
         # create email
         msg = EmailMessage()
@@ -112,7 +115,7 @@ Verwendungszweck: %s, %s
 
 Sobald wir den Geldeingang bei uns verbuchen, gilt die Gutscheinnummer zusammen mit dem Ausweis des Begünstigten als Zahlungsnachweis und kann gegen den
 entsprechenden Flug vor Ort eingelöst werden.
-
+%s
 Falls Sie weitere Fragen zur Rechnung haben, antworten Sie bitte auf diese Email an unseren Schatzmeister Jan Schandl <mailto:%s>.
 
 Selbstverständlich dürfen Sie die Gutscheinnummer auf einem selbst gestalteten Gutschein an die begünstigte Person verschenken.
@@ -136,7 +139,7 @@ werden.
 Instagram: Breisgauverein_Segelflug
 <https://instagram.com/breisgauverein_segelflug>''' % (
             voucher["buyer_firstname"], voucher["buyer_lastname"], voucher_type, voucher["guest_firstname"], voucher["guest_lastname"], voucher["amount"], 
-            self._bank_holder, self._bank_iban, self._bank_bic, self._bank_name, voucher["id"], voucher["buyer_lastname"], self._mail_reply_to))
+            self._bank_holder, self._bank_iban, self._bank_bic, self._bank_name, voucher["id"], voucher["buyer_lastname"], self._mail_reply_to), info_tmg)
         msg.set_content(msg_content)
 
         # if present, add invoice as attachment
