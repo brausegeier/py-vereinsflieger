@@ -15,7 +15,7 @@ from ssl          import wrap_socket
 from threading    import Lock
 from base64       import b64encode, b64decode
 from math         import ceil
-from urllib.parse import quote, unquote
+from urllib.parse import quote_plus, unquote_plus
 from sys          import _getframe as s_frame
 
 
@@ -163,7 +163,7 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
         #
         # read submitted data and split it into individual values
         #
-        data_pairs = str(unquote(self.rfile.read(content_len).decode('utf-8'))).split('&')
+        data_pairs = str(unquote_plus(self.rfile.read(content_len).decode('utf-8'))).split('&')
         post_data = {}
         for pair in data_pairs:
             data_split = pair.split('=')
@@ -321,7 +321,7 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
         # Response -> redirect to failed page
         #
         self.send_response(http.server.HTTPStatus.FOUND)
-        self.send_header('Location','https://brausegeier.de/gutscheinbestellung-fehlgeschlagen/?error_desc='+quote(user_desc)+'&error_code='+admin_desc)
+        self.send_header('Location','https://brausegeier.de/gutscheinbestellung-fehlgeschlagen/?error_desc='+quote_plus(user_desc)+'&error_code='+admin_desc)
         self.end_headers()
 
 
@@ -356,7 +356,7 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
         # Response -> redirect to failed page
         #
         self.send_response(http.server.HTTPStatus.FOUND)
-        self.send_header('Location','https://brausegeier.de/gutscheinbestellung-eingabe-falsch/?error_desc='+quote(user_desc)+'&error_code='+admin_desc)
+        self.send_header('Location','https://brausegeier.de/gutscheinbestellung-eingabe-falsch/?error_desc='+quote_plus(user_desc)+'&error_code='+admin_desc)
         self.end_headers()
 
 
@@ -416,7 +416,7 @@ Selbstverständlich dürfen Sie die Gutscheinnummer auf einem selbst gestalteten
         # Response -> redirect to success page (and display voucher / payment description)
         #
         self.send_response(http.server.HTTPStatus.FOUND)
-        self.send_header('Location','https://brausegeier.de/gutscheinbestellung-erfolgreich/?message='+quote(voucher_message))
+        self.send_header('Location','https://brausegeier.de/gutscheinbestellung-erfolgreich/?message='+quote_plus(voucher_message))
         self.end_headers()
 
 
