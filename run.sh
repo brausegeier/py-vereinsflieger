@@ -1,5 +1,4 @@
 #!/bin/bash
 
-./main.py > logfile.txt 2>&1
-
+./main.py 2>&1 >> logfile.txt
 
