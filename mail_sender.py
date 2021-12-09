@@ -88,7 +88,7 @@ class MailSender():
             voucher_minutes = 60.0 * voucher_euro / 110.0
             voucher_minutes = int(round(voucher_minutes, 0))
             voucher_type = ("%d minütigen Motorsegler" % voucher_minutes)
-            info_tmg = "\nUm einen Termin für den Flug zu vereinbaren, antworten Sie bitte auf diese Email an <mailto:mitfliegen@brausegeier.de>\n"
+            info_tmg = "\nUm einen Termin für den Flug zu vereinbaren, antworten Sie bitte auf diese Email an <mailto:mitfliegen@brausegeier.de>.\n"
         else:
             voucher_type = "!Fehler!"
             voucher_amount = 0
