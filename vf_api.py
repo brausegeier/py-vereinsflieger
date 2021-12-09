@@ -668,8 +668,13 @@ class VF_API():
         # fill in data
         #
         voucher_data["frm_email"]       = str(self._voucher_data["buyer_email"])
-        voucher_data["frm_firstname"]   = str(self._voucher_data["buyer_firstname"])
-        voucher_data["frm_lastname"]    = str(self._voucher_data["buyer_lastname"])
+        # have guest name here instead of buyer as this is the name shown when redeeming the voucher
+        # buyer is mentioned in comment field
+        voucher_data["frm_firstname"]   = str(self._voucher_data["guest_firstname"])
+        voucher_data["frm_lastname"]    = str(self._voucher_data["guest_lastname"])
+        voucher_data["frm_street"]      = str(self._voucher_data["buyer_street"])
+        voucher_data["frm_zipcode"]     = str(self._voucher_data["buyer_zip"])
+        voucher_data["frm_town"]        = str(self._voucher_data["buyer_city"])
         voucher_data["frm_voucherid"]   = str(self._voucher_data["id"])
         voucher_data["frm_value"]       = str(self._voucher_data["amount"])
         voucher_data["frm_passenger"]   = str(self._voucher_data["guest_firstname"]+" "+self._voucher_data["guest_lastname"])
@@ -688,8 +693,9 @@ class VF_API():
         voucher_ip = ""
         if "ip" in self._voucher_data.keys():
             voucher_ip = " von IP "+str(self._voucher_data["ip"])
-        voucher_data["frm_comment"] = "Automatisch erstellt über %s am %s um %s Uhr%s. Zahlungsaufforderung gesendet an %s" % (voucher_provider,
-        str(self._voucher_data["date"]), str(self._voucher_data["time"]), voucher_ip, voucher_data["frm_email"])
+        voucher_data["frm_comment"] = "Automatisch erstellt über %s am %s um %s Uhr%s. Zahlungsaufforderung gesendet an Käufer %s %s -> %s" % (voucher_provider,
+                str(self._voucher_data["date"]), str(self._voucher_data["time"]), voucher_ip,
+                str(self._voucher_data["buyer_firstname"]), str(self._voucher_data["buyer_lastname"]), voucher_data["frm_email"])
 
 
         if self._debug > 1:
@@ -799,6 +805,9 @@ class VF_API():
         # buyer data
         invoice_data["frm_community"]   = str(self._voucher_data["buyer_firstname"]) + " " + str(self._voucher_data["buyer_lastname"])
         invoice_data["frm_email"]       = str(self._voucher_data["buyer_email"])
+        invoice_data["frm_street"]      = str(self._voucher_data["buyer_street"])
+        invoice_data["frm_zipcode"]     = str(self._voucher_data["buyer_zip"])
+        invoice_data["frm_town"]        = str(self._voucher_data["buyer_city"])
         # item data
         if self._voucher_data["type"] == "TMG":
             invoice_data["frm_subtitle"]    = "Gutschein Motorsegler"

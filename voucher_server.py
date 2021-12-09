@@ -181,8 +181,8 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
         #
         required_keys = ["voucher_kind", #"voucher_duration", # not required for "SF"
                 "buyer_firstname", "buyer_lastname", "buyer_email",
+                "buyer_street", "buyer_zipcode", "buyer_city", # required for invoice
                 "beneficiary_firstname", "beneficiary_lastname",
-                "beneficiary_street", "beneficiary_zipcode", "beneficiary_city", # not required by script but by policy
                 "g-recaptcha-response"]
         key_missing = None
         for key in required_keys:
@@ -206,18 +206,18 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
             key_missing = "%s: Invalid request. Value of \"buyer_firstname\" is too short: \"%s\"" % (s_frame().f_code.co_name, post_data["buyer_firstname"])
         if len(str(post_data["buyer_lastname"])) < 2:
             key_missing = "%s: Invalid request. Value of \"buyer_lastname\" is too short: \"%s\"" % (s_frame().f_code.co_name, post_data["buyer_lastname"])
+        if len(str(post_data["buyer_street"])) < 2:
+            key_missing = "%s: Invalid request. Value of \"buyer_street\" is too short: \"%s\"" % (s_frame().f_code.co_name, post_data["buyer_street"])
+        if len(str(post_data["buyer_city"])) < 2:
+            key_missing = "%s: Invalid request. Value of \"buyer_city\" is too short: \"%s\"" % (s_frame().f_code.co_name, post_data["buyer_city"])
+        if len(str(post_data["buyer_zipcode"])) != 5 or int(post_data["buyer_zipcode"]) < 1067:
+            key_missing = "%s: Invalid request. Value of \"buyer_zipcode\" is invalid: \"%s\"" % (s_frame().f_code.co_name, post_data["buyer_zipcode"])
+        if len(str(post_data["buyer_email"])) < 7 or not "@" in str(post_data["buyer_email"]) or not "." in str(post_data["buyer_email"]).split("@")[1]:
+            key_missing = "%s: Invalid request. Value of \"buyer_email\" is invalid: \"%s\"" % (s_frame().f_code.co_name, post_data["buyer_email"])
         if len(str(post_data["beneficiary_firstname"])) < 2:
             key_missing = "%s: Invalid request. Value of \"beneficiary_firstname\" is too short: \"%s\"" % (s_frame().f_code.co_name, post_data["beneficiary_firstname"])
         if len(str(post_data["beneficiary_lastname"])) < 2:
             key_missing = "%s: Invalid request. Value of \"beneficiary_lastname\" is too short: \"%s\"" % (s_frame().f_code.co_name, post_data["beneficiary_lastname"])
-        if len(str(post_data["beneficiary_street"])) < 2:
-            key_missing = "%s: Invalid request. Value of \"beneficiary_street\" is too short: \"%s\"" % (s_frame().f_code.co_name, post_data["beneficiary_street"])
-        if len(str(post_data["beneficiary_city"])) < 2:
-            key_missing = "%s: Invalid request. Value of \"beneficiary_city\" is too short: \"%s\"" % (s_frame().f_code.co_name, post_data["beneficiary_city"])
-        if len(str(post_data["beneficiary_zipcode"])) != 5 or int(post_data["beneficiary_zipcode"]) < 1067:
-            key_missing = "%s: Invalid request. Value of \"beneficiary_zipcode\" is invalid: \"%s\"" % (s_frame().f_code.co_name, post_data["beneficiary_zipcode"])
-        if len(str(post_data["buyer_email"])) < 7 or not "@" in str(post_data["buyer_email"]) or not "." in str(post_data["buyer_email"]).split("@")[1]:
-            key_missing = "%s: Invalid request. Value of \"buyer_email\" is invalid: \"%s\"" % (s_frame().f_code.co_name, post_data["buyer_email"])
 
         if key_missing is not None:
             return ["Data_Error", key_missing]
@@ -259,6 +259,9 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
         voucher_data["buyer_firstname"] = post_data["buyer_firstname"]
         voucher_data["buyer_lastname"]  = post_data["buyer_lastname"]
         voucher_data["buyer_email"]     = post_data["buyer_email"]
+        voucher_data["buyer_street"]    = post_data["buyer_street"]
+        voucher_data["buyer_city"]      = post_data["buyer_city"]
+        voucher_data["buyer_zip"]       = post_data["buyer_zipcode"]
         voucher_data["guest_firstname"] = post_data["beneficiary_firstname"]
         voucher_data["guest_lastname"]  = post_data["beneficiary_lastname"]
 
@@ -403,7 +406,7 @@ Verwendungszweck: %s, %s</br>
 Sobald wir den Geldeingang bei uns verbuchen, gilt die Gutscheinnummer zusammen mit dem Ausweis des Begünstigten als Zahlungsnachweis und kann gegen
 den entsprechenden Flug vor Ort eingelöst werden.</br>
 </br>
-Falls Sie eine separate Rechnung benötigen, antworten Sie bitte auf die Email.</br>
+Sie erhalten eine separate Rechnung per Email.</br>
 </br>
 Selbstverständlich dürfen Sie die Gutscheinnummer auf einem selbst gestalteten Gutschein an die begünstigte Person verschenken.''' % (
             voucher["buyer_firstname"], voucher["buyer_lastname"], voucher_type, voucher["guest_firstname"], voucher["guest_lastname"], voucher["amount"],

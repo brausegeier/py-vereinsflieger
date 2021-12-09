@@ -113,7 +113,7 @@ Verwendungszweck: %s, %s
 Sobald wir den Geldeingang bei uns verbuchen, gilt die Gutscheinnummer zusammen mit dem Ausweis des Begünstigten als Zahlungsnachweis und kann gegen den
 entsprechenden Flug vor Ort eingelöst werden.
 
-Falls Sie weitere Fragen zur Rechnung haben, antworten Sie bitte auf diese Email an unseren Schatzmeister Jan Schandel <mailto:%s>.
+Falls Sie weitere Fragen zur Rechnung haben, antworten Sie bitte auf diese Email an unseren Schatzmeister Jan Schandl <mailto:%s>.
 
 Selbstverständlich dürfen Sie die Gutscheinnummer auf einem selbst gestalteten Gutschein an die begünstigte Person verschenken.
 
