@@ -358,10 +358,10 @@ class VF_API():
         # check, if we got a valid pwdsalt
         #
         pwdsalt_len = len(pwdsalt_data)
-        if pwdsalt_len != 32:
-            return self._throw_error(-3, "Failed to get new pwdsalt, length mismatch. Expected 32 != %d actual." % (pwdsalt_len),
+        if pwdsalt_len < 32:
+            return self._throw_error(-3, "Failed to get new pwdsalt, length too short. Expected at least 32 > %d actual." % (pwdsalt_len),
                     s_frame().f_code.co_name)
-        self._input_kv["pwdsalt"] = pwdsalt_data
+        self._input_kv["pwdsalt"] = pwdsalt_data[0:32]
 
         if self._debug > 2:
             print("%s: New pwdsalt: \"%s\"" % (s_frame().f_code.co_name, self._input_kv["pwdsalt"]))
