@@ -315,6 +315,15 @@ class VF_API():
         self._magic_id_1 = magic_ids.group(2)
 
         #
+        # extract substring parameters
+        #
+        substr_search = re.search('resultdata.response.substr\(([0-9]+),([0-9]+)\);', signin_js_data)
+        if substr_search is None:
+            return self._throw_error(-1, "Failed to extract substr data from pwdsalt_site.", s_frame().f_code.co_name)
+        self._substr_start = int(substr_search.group(1))
+        self._substr_end = self._substr_start + int(substr_search.group(2))
+
+        #
         # check, if we got a valid pwdsalt site and form inputs are available
         #
         if self._pwdsalt_site is None:
@@ -329,6 +338,8 @@ class VF_API():
             print("%s: pwdsalt_site ID: \"%s\"" % (s_frame().f_code.co_name, self._pwdsalt_site))
             print("%s: Magic ID 0: \"%s\"" % (s_frame().f_code.co_name, self._magic_id_0))
             print("%s: Magic ID 1: \"%s\"" % (s_frame().f_code.co_name, self._magic_id_1))
+            print("%s: Substr start: \"%d\"" % (s_frame().f_code.co_name, self._substr_start))
+            print("%s: Substr end:   \"%d\"" % (s_frame().f_code.co_name, self._substr_end))
             if self._debug > 3:
                 print("%s: Magic IDs search string: \"%s\"" % (s_frame().f_code.co_name, magic_ids.group()))
                 print("%s: html form input values: %s" % (s_frame().f_code.co_name, self._input_kv))
@@ -358,13 +369,17 @@ class VF_API():
         # check, if we got a valid pwdsalt
         #
         pwdsalt_len = len(pwdsalt_data)
-        if pwdsalt_len < 32:
-            return self._throw_error(-3, "Failed to get new pwdsalt, length too short. Expected at least 32 > %d actual." % (pwdsalt_len),
+        if pwdsalt_len < self._substr_end:
+            return self._throw_error(-3, "Failed to get new pwdsalt, length too short. Expected at least %d > %d actual." % (self._substr_end, pwdsalt_len),
                     s_frame().f_code.co_name)
-        self._input_kv["pwdsalt"] = pwdsalt_data[0:32]
+	#
+	# Extract requested substring
+	#
+        self._input_kv["pwdsalt"] = pwdsalt_data[self._substr_start:self._substr_end]
 
         if self._debug > 2:
             print("%s: New pwdsalt: \"%s\"" % (s_frame().f_code.co_name, self._input_kv["pwdsalt"]))
+            print("%s: New pwdsalt length: \"%d\"" % (s_frame().f_code.co_name, len(self._input_kv["pwdsalt"])))
             if self._debug > 3:
                 print("%s: html form input values: %s" % (s_frame().f_code.co_name, self._input_kv))
 
