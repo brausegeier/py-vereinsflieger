@@ -10,9 +10,10 @@
 
 
 import vf_api
-import mail_sender
+import smtplib
 import sys
 from credentials    import Credentials as cred
+from email.message  import EmailMessage
 from io             import StringIO
 from time           import sleep, strftime, gmtime
 from random         import randint
@@ -72,11 +73,12 @@ api.set_credentials(cred().vf_user_id, cred().vf_user_pwd)
 
 while (True):
     # redirect outptut to error_msg
-    with Capturing as error_msg:
+    with Capturing() as error_msg:
         login_works = api.login()
     if login_works:
         print("%s: Login works" % strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime()))
-        api.logout()
+        with Capturing() as quiet:
+            api.logout()
     else:
         print("%s: Login failed!" % strftime("%a, %d %b %Y %H:%M:%S +0000", gmtime()))
         print(error_msg)
