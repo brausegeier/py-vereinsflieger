@@ -266,7 +266,8 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
         voucher_data["guest_lastname"]  = post_data["beneficiary_lastname"]
 
         # buyer IP for abuse protection / prevention
-        voucher_data["ip"] = self.address_string()
+        #voucher_data["ip"] = self.address_string()
+        voucher_data["ip"] = self.client_address[0]
 
         if self.server.debug > 1:
             print("%s: Voucher data: \"%s\"" % (s_frame().f_code.co_name, voucher_data))

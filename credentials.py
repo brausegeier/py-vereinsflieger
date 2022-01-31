@@ -30,6 +30,7 @@ class Credentials():
         self.mail_user_pwd  = ''
         self.mail_bcc       = ''
         self.mail_reply_to  = ''
+        self.mail_report    = ''
 
         # Vereinsflieger invoice data
         self.vf_caid        = ''
