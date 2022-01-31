@@ -48,7 +48,6 @@ def report_error(error_msg):
     for line in error_msg:
         msg_content = msg_content + line + "\n"
     msg_content = msg_content + "<<< EOF\n\nReported by py-vereinsflieger/error_reporter.py\n"
-            % error_msg)
     msg.set_content(msg_content)
 
     # send the email
