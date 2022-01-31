@@ -373,7 +373,7 @@ class VF_API():
             return self._throw_error(-3, "Failed to get new pwdsalt, length too short. Expected at least %d > %d actual." % (self._substr_end, pwdsalt_len),
                     s_frame().f_code.co_name)
 	#
-	# Skip first 16 characters, use next (up to) 32 chars.
+	# Extract requested substring
 	#
         self._input_kv["pwdsalt"] = pwdsalt_data[self._substr_start:self._substr_end]
 
