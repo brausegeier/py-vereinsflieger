@@ -44,7 +44,10 @@ def report_error(error_msg):
     msg["Subject"]  = "VF_API(): Error"
     msg["From"]     = cred().mail_report
     msg["To"]       = cred().mail_report
-    msg_content = ("The following error occured while checking the VF_API():\n\n%s\nReported by py-vereinsflieger/error_reporter.py\n"
+    msg_content     = "The following error occured while checking the VF_API():\n\nEOF <<<\n"
+    for line in error_msg:
+        msg_content = msg_content + line + "\n"
+    msg_content = msg_content + "<<< EOF\n\nReported by py-vereinsflieger/error_reporter.py\n"
             % error_msg)
     msg.set_content(msg_content)
 
