@@ -220,7 +220,7 @@ class VF_API():
         self._js_version_id     = re.search('<script src="/js/default\?v=(.+)"></script>', login_page_data)
         self._css_version_id_0  = re.search('href="/css/publicDefault\?v=(.+)" />', login_page_data)
         self._css_version_id_1  = re.search('href="/signin.css\?v=(.+)" />', login_page_data)
-        self._signin_js_id      = re.search('<script src="([a-zA-Z]+)\?v=(.+)"></script>', login_page_data)
+        self._signin_js_id      = re.search('<script src="([a-zA-Z0-9]+)\?v=(.+)"></script>', login_page_data)
 
         if self._js_version_id is None:
             return self._throw_error(-1, "Failed to extract js_version_id.", s_frame().f_code.co_name)
@@ -372,9 +372,9 @@ class VF_API():
         if pwdsalt_len < self._substr_end:
             return self._throw_error(-3, "Failed to get new pwdsalt, length too short. Expected at least %d > %d actual." % (self._substr_end, pwdsalt_len),
                     s_frame().f_code.co_name)
-	#
-	# Extract requested substring
-	#
+    #
+    # Extract requested substring
+    #
         self._input_kv["pwdsalt"] = pwdsalt_data[self._substr_start:self._substr_end]
 
         if self._debug > 2:
@@ -560,16 +560,25 @@ class VF_API():
         vl = vl[vl.Nummer.str.startswith(self._voucher_data["type"]+"-")]
         vl.sort_values(by="Nummer", inplace=True, ascending=False)
 
-        #
-        # split voucher id into components
-        #
-        voucher_id = vl.iloc[0].Nummer
-        if self._debug > 1:
-            print("%s: Latest voucher ID of type %s: \"%s\"" % (s_frame().f_code.co_name, self._voucher_data["type"], voucher_id))
-        
-        voucher_id_split = re.search('^[^-]+-([0-9]+)-([0-9]+)([-2-9A-HJ-NP-Z]*)', voucher_id)
+        voucher_id_split = None
+        voucher_nr = 0
+        while voucher_id_split is None:
+            #
+            # split voucher id into components
+            #
+            voucher_id = vl.iloc[voucher_nr].Nummer
+            if self._debug > 1:
+                print("%s: Latest voucher ID of type %s: \"%s\"" % (s_frame().f_code.co_name, self._voucher_data["type"], voucher_id))
+
+            voucher_id_split = re.search('^[^-]+-([0-9]+)-([0-9]+)([-2-9A-HJ-NP-Z]*)', voucher_id)
+            if voucher_id_split is None:
+                    print("%s: Failed to split voucher ID (%dth newest): %s" % (s_frame().f_code.co_name, voucher_nr, voucher_id))
+            voucher_nr = voucher_nr + 1
+            if voucher_nr > 20:
+                break
         if voucher_id_split is None:
             return self._throw_error(-3, "Failed to split voucher ID: %s" % (voucher_id), s_frame().f_code.co_name)
+
         voucher_year = voucher_id_split.group(1)
         voucher_number = voucher_id_split.group(2)
         #voucher_hash = voucher_id_split.group(3)
