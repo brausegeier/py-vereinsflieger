@@ -27,7 +27,15 @@ api.set_credentials(cred().vf_user_id, cred().vf_user_pwd)
 # Test Login
 #
 
-api.login()
+success = api.login()
 api.logout()
 
+if success:
+    print("\n\n####################");
+    print("# Login successful #")
+    print("####################");
+else:
+    print("\n\n################");
+    print("# Login FAILED #")
+    print("################");
 
