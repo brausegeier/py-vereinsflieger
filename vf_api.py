@@ -50,6 +50,8 @@ class VF_API():
 
 
     def create_voucher(self, voucher_data, create_invoice = True):
+        if self._debug > 0:
+            print("\n\n\n%s: New voucher request on %s at %s." % (s_frame().f_code.co_name, strftime("%d.%m.%Y"), strftime("%H:%M")))
         self._cleanup_voucher()
         if not self._logged_in:
             if self._debug > 0:
