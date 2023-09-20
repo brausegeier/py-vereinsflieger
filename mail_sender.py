@@ -114,7 +114,7 @@ Bank: %s
 Verwendungszweck: %s, %s
 
 Sobald wir den Geldeingang bei uns verbuchen, gilt die Gutscheinnummer zusammen mit dem Ausweis des Begünstigten als Zahlungsnachweis und kann gegen den
-entsprechenden Flug vor Ort eingelöst werden.
+entsprechenden Flug vor Ort eingelöst werden. Bitte beachten Sie, dass Gutscheine drei Jahre lang gültig sind.
 %s
 Falls Sie weitere Fragen zur Rechnung haben, antworten Sie bitte auf diese Email an unseren Schatzmeister Jan Schandl <mailto:%s>.
 
