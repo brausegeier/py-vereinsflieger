@@ -14,6 +14,9 @@ from pandas     import DataFrame, read_csv
 from io         import StringIO
 from time       import sleep, strftime
 from sys        import _getframe as s_frame
+from Crypto.Cipher      import PKCS1_OAEP
+from Crypto.PublicKey   import RSA
+from base64             import b64decode,b64encode
 
 
 class VF_API():
@@ -85,9 +88,10 @@ class VF_API():
             self._user_pwd_hash = md5(user_pwd.encode()).hexdigest()
 
         self._scrape_login_page()
-        self._get_useless_files()
+        #self._get_useless_files()
         self._scrape_signin_js()
         self._get_pwdsalt()
+        self._scrape_default_js()
         self._calc_login_data()
 
         if self._error < 0:
@@ -138,7 +142,7 @@ class VF_API():
         self._input_kv = None
         self._js_version_id = None
         self._css_version_id_0 = None
-        self._css_version_id_1 = None
+        #self._css_version_id_1 = None
         self._signin_js_id = None
         self._signin_js_file = None
         self._pwdsalt_site = None
@@ -173,7 +177,7 @@ class VF_API():
                     if content is None:
                         content = resp.content.decode('utf-8')
                     print("%s: Site data:" % (func_name))
-                    print(content)
+                    print(content.encode('utf-8'))
 
 
     #######
@@ -217,22 +221,23 @@ class VF_API():
         #
         # search for various version ids
         #
-        self._js_version_id     = re.search('<script src="/js/default\?v=(.+)"></script>', login_page_data)
-        self._css_version_id_0  = re.search('href="/css/publicDefault\?v=(.+)" />', login_page_data)
-        self._css_version_id_1  = re.search('href="/signin.css\?v=(.+)" />', login_page_data)
+        #self._js_version_id     = re.search('<script src="/js/default\?v=(.+)"></script>', login_page_data)
+        self._js_version_id     = re.search('<script src="/minscript/default\?v=(.+)"></script>', login_page_data)
+        #self._css_version_id_0  = re.search('href="/css/publicDefault\?v=(.+)" />', login_page_data)
+        #self._css_version_id_1  = re.search('href="/signin.css\?v=(.+)" />', login_page_data)
         self._signin_js_id      = re.search('<script src="([a-zA-Z0-9]+)\?v=(.+)"></script>', login_page_data)
 
         if self._js_version_id is None:
             return self._throw_error(-1, "Failed to extract js_version_id.", s_frame().f_code.co_name)
-        if self._css_version_id_0 is None:
-            return self._throw_error(-1, "Failed to extract css_version_id_0.", s_frame().f_code.co_name)
-        if self._css_version_id_1 is None:
-            return self._throw_error(-1, "Failed to extract css_version_id_1.", s_frame().f_code.co_name)
+        #if self._css_version_id_0 is None:
+        #    return self._throw_error(-1, "Failed to extract css_version_id_0.", s_frame().f_code.co_name)
+        #if self._css_version_id_1 is None:
+        #    return self._throw_error(-1, "Failed to extract css_version_id_1.", s_frame().f_code.co_name)
         if self._signin_js_id is None:
             return self._throw_error(-1, "Failed to extract signin_js_id.", s_frame().f_code.co_name)
         self._js_version_id     = self._js_version_id.group(1)
-        self._css_version_id_0  = self._css_version_id_0.group(1)
-        self._css_version_id_1  = self._css_version_id_1.group(1)
+        #self._css_version_id_0  = self._css_version_id_0.group(1)
+        #self._css_version_id_1  = self._css_version_id_1.group(1)
         self._signin_js_file    = self._signin_js_id.group(1)
         self._signin_js_id      = self._signin_js_id.group(2)
 
@@ -241,10 +246,10 @@ class VF_API():
         #
         if self._js_version_id is None:
             return self._throw_error(-2, "No JS version ID found!", s_frame().f_code.co_name)
-        if self._css_version_id_0 is None:
-            return self._throw_error(-2, "No CSS version ID 0 found!", s_frame().f_code.co_name)
-        if self._css_version_id_1 is None:
-            return self._throw_error(-2, "No CSS version ID 1 found!", s_frame().f_code.co_name)
+        #if self._css_version_id_0 is None:
+        #    return self._throw_error(-2, "No CSS version ID 0 found!", s_frame().f_code.co_name)
+        #if self._css_version_id_1 is None:
+        #    return self._throw_error(-2, "No CSS version ID 1 found!", s_frame().f_code.co_name)
         if self._signin_js_file is None:
             return self._throw_error(-2, "No signin JS file found!", s_frame().f_code.co_name)
         if self._signin_js_id is None:
@@ -264,10 +269,12 @@ class VF_API():
         #
         # get those useless files that are required to get for the login to work
         #
-        urls = [str('https://vereinsflieger.de/js/default?v='+self._js_version_id),
-                str('https://vereinsflieger.de/js/public.js?v='+self._js_version_id),
-                str('https://vereinsflieger.de/css/publicDefault?v='+self._css_version_id_0),
-                str('https://vereinsflieger.de/signin.css?v='+self._css_version_id_1)]
+        #urls = [str('https://vereinsflieger.de/js/default?v='+self._js_version_id),
+        #urls = [str('https://vereinsflieger.de/js/public.js?v='+self._js_version_id),
+        urls = [str('https://vereinsflieger.de/js/public.js?v='+self._js_version_id),
+                str('https://vereinsflieger.de/css/publicDefault?v='+self._css_version_id_0)
+                #str('https://vereinsflieger.de/signin.css?v='+self._css_version_id_1)
+               ]
         for url in urls:
             resp = self._session.get(url)
             if self._debug > 3:
@@ -304,7 +311,7 @@ class VF_API():
         #
         # search for pwdsalt site and magic ids in signin js
         #
-        self._pwdsalt_site = re.search('vfbase.loadContentX\(\'([a-z]+)\'\, \'post\'', signin_js_data)
+        self._pwdsalt_site = re.search('vfbase.loadContentX\(\'([a-z]+)\'\, \'post\', new ', signin_js_data)
         magic_ids = re.search('document.signin.([a-z]+).value = md5\(document.signin.pw.value\+"([0-9a-z]+)"\+document.signin.pwdsalt.value\);', signin_js_data)
         if self._pwdsalt_site is None:
             return self._throw_error(-1, "Failed to extract pwdsalt_site.", s_frame().f_code.co_name)
@@ -343,6 +350,43 @@ class VF_API():
             if self._debug > 3:
                 print("%s: Magic IDs search string: \"%s\"" % (s_frame().f_code.co_name, magic_ids.group()))
                 print("%s: html form input values: %s" % (s_frame().f_code.co_name, self._input_kv))
+
+        return 0
+
+
+    #######
+    def _scrape_default_js(self):
+    #######
+        if self._error < 0:
+            return self._error
+        if not isinstance(self._session, Session):
+            return self._throw_error(-1, "Invalid session: %s" % (resp), s_frame().f_code.co_name)
+
+        if self._debug > 0:
+            print("%s: Getting /defaultjs with ID/version \"%s\"" % (s_frame().f_code.co_name, self._js_version_id))
+
+        #
+        # get default_js file
+        #
+        default_js = self._session.get('https://vereinsflieger.de/js/default?v='+self._js_version_id)
+        default_js_data = default_js.content.decode('utf-8')
+        self._debug_page(default_js, s_frame().f_code.co_name, default_js_data)
+
+        #
+        # search for pwdsalt site and magic ids in default js
+        #
+        self._pwd_pubkey_orig = re.search('var publicKey=\'(.+)\';return window.crypto.subtle\.importKey', default_js_data)
+        if self._pwd_pubkey_orig is None:
+            return self._throw_error(-1, "Failed to extract pwd_pubkey.", s_frame().f_code.co_name)
+
+        # get actual key from match
+        self._pwd_pubkey_orig = self._pwd_pubkey_orig.group(1)
+
+        #
+        # check, if we got a valid pwdsalt site and form inputs are available
+        #
+        if self._pwd_pubkey_orig is None:
+            return self._throw_error(-2, "No pwd pubkey found!", s_frame().f_code.co_name)
 
         return 0
 
@@ -397,6 +441,9 @@ class VF_API():
         if self._user_pwd_hash is None:
             print("%s: No user_pwd given!" % (s_frame().f_code.co_name))
             self._error = -5
+        if self._pwd_pubkey_orig is None:
+            print("%s: No pwd pubkey found!" % (s_frame().f_code.co_name))
+            self._error = -5
         if self._error < 0:
             return self._throw_error(self._error, "No credentials available!", sys._get_frame().f_code.co_name)
         if "pwdsalt" not in self._input_kv.keys():
@@ -410,12 +457,44 @@ class VF_API():
         #
         # calculate new magic_id_0 value
         #
+#pwd_value == md5_value = "f8f50641f97aee237803e030b7708785"
+#pwd_slt = "7f132285a0161e45dd2d1413c52e0687"
+#pwd_input_value = "WaAOw6wryZIzcWoVYdRiWCx5f"
+
         md5_input = str(self._user_pwd_hash)+str(self._magic_id_1)+str(self._input_kv["pwdsalt"])
+        md5_test  = str(self._user_pwd_hash)+str("34jvmtrkfd")+str("7f132285a0161e45dd2d1413c52e0687")
         self._input_kv[self._magic_id_0] = md5(md5_input.encode()).hexdigest()
+        magic0_test = md5(md5_test.encode()).hexdigest()
         if self._debug > 2:
             print("%s: User pwd hash: \"%s\"" % (s_frame().f_code.co_name, self._user_pwd_hash))
             print("%s: MD5 input: \"%s\"" % (s_frame().f_code.co_name, md5_input))
             print("%s: New magic value 0: \"%s\"" % (s_frame().f_code.co_name, self._input_kv[self._magic_id_0]))
+
+        #
+        # calculate new "pwdcrypt" value
+        #
+        #message = b'You can attack now!'
+        # TODO: scrape from "default?v=2022.08.07":
+        #         var publicKey='MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqBFElZ5YkK63ubKCp2XTRewHt5p9ioOYsNXv+j2GaRl7RJoDWR/3rVJpE+Fvc/ezfiz/eRJGpHS2OFwq+vhAJOl0Aba/1/kb+UJXcJ6Fo3NOm+jKbKeWhUzxxjYqQseLP6FsZFMq5gp2/oE6mydkWXNnZNBAWLX7Wt0Hw1JMxJvJgLvlgOjmMfj/x8q+wH4+VIDLKCRYahHRpyK/5mQUpk6JZgfA6v20V4YUJA4CdsPhvR22lPB6qSdEsw6HyjgnoClydYMDs/2IADvJysXkPVJos2SFmHAEmCs1Sr9JGdrza5xOMRwtIN3nmGA6Xv28AL65vC+1AUxfk5fo0GoVyQIDAQAB';
+        print("Orig pubkey: \"%s\"" % self._pwd_pubkey_orig)
+        #self._pwd_pubkey = b64decode(self._pwd_pubkey_orig)
+        #print("Decoded pubkey: \"%s\"" % self._pwd_pubkey)
+        #key = RSA.importKey(self._pwd_pubkey.decode('ascii'))
+        #key = RSA.importKey("-----BEGIN PRIVATE KEY-----\n"+self._pwd_pubkey_orig+"\n-----END PRIVATE KEY-----")
+        key = RSA.importKey("-----BEGIN PRIVATE KEY-----\n"+self._pwd_pubkey_orig+"\n-----END PRIVATE KEY-----")
+        print("imported")
+        cipher = PKCS1_OAEP.new(key)
+        #pwdcrypt = cipher.encrypt(self._user_pwd_hash.encode())
+        print("encoded: \"%s\"" % str(self._user_pwd_hash.encode()))
+        pwdcrypt = cipher.encrypt(b64encode(self._user_pwd_hash.encode()))
+        #pwdcrypt = cipher.encrypt(b64decode(self._user_pwd_hash.encode()))
+        #pwdcrypt = cipher.encrypt(b64encode(self._user_pwd_hash.encode()))
+        pwdcrypt = b64encode(pwdcrypt).decode()
+        print("got pwdcrypt: \"%s\"" % str(pwdcrypt))
+        #pwd_crypt = "m7XdtzBF/CLGb0NcuDpBuvLY/raXXqcZmBB0bqNJc80ZfifqIsO1t+bSJ1KlWBeeSFHDi4NxXQTdprK2Z+AwOmVLZ90Z5lqLiNmy3KhGC18oS961+8w482M+iZILZazlCddRMHjQprJOfHr+HHppQ22mKtTJmo822Uc/Srke0uywrLRog/Hfz5Hq+a2VsdG3Ian3EV9nW8tUkWrGw/E/QXOgPIBrgIJPAlna4x2BDRX57ucwDAfcbghtZ5+fQwr+DUs3C9cpBzx0pTv0STZFcNx9pXkb6PyYMjR6+nu8GhNGkvkCnhVTEGOCeJKsKeT2v5FUNdOK9pX8JkXhh+jNQg=="
+        pwd_crypt = "Y3U+pStp1k7izC+c9wKDHoTkLQ4gXThGDF8oeEsbsuHBBBk/a+lUcrHUJam1kUOmnd6AHPefbA8AJnfXHnXtQrPyI/JQ61aKLhaf5/PCGIvJExRJfsYBxPq29CLKLf9UgaYjAMMVSgR1mDPlTFGbOKZYiUCI+9h5ant56RorqmUgXSgdJnz8j1aqql3X8OvnzkgzqgNzSgS7OP0vqMo6E/PJFm+Bw+k0lobtW3y7AaldDcOfxT4mN7cWfcE/3kpcoGnjNWGpNaxReYenXMfdTzjNAv0h2+DGAuQ1Ti3dcB8ZJ7P0JHDhRFe3YGAxuhHUx2wdusJWpHj0oGJie5QAPQ=="
+        print("exp pwdcrypt: \"%s\"" % pwd_crypt)
+        #pwd_crypt = pwdcrypt
 
         #
         # set/clear other form input values
@@ -423,6 +502,7 @@ class VF_API():
         self._input_kv["user"] = str(self._user_id)
         self._input_kv["pwinput"] = ""
         self._input_kv["pw"] = str(self._user_pwd_hash)
+        self._input_kv["pwdcrypt"] = str(pwd_crypt)
         #self._input_kv["stayloggedin"] = "0"
 
         if self._debug > 3:
