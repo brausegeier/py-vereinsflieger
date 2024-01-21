@@ -97,6 +97,7 @@ class VF_API():
         self._calc_login_data()
 
         if self._error < 0:
+            self._logged_in = False
             return self._error
 
         if self._debug > 0:
@@ -273,7 +274,8 @@ class VF_API():
         #
         #urls = [str('https://vereinsflieger.de/js/default?v='+self._js_version_id),
         #urls = [str('https://vereinsflieger.de/js/public.js?v='+self._js_version_id),
-        urls = [str('https://vereinsflieger.de/js/public.js?v='+self._js_version_id),
+        #urls = [str('https://vereinsflieger.de/js/public.js?v='+self._js_version_id),
+        urls = [str('https://vereinsflieger.de/minscript/public.js?v='+self._js_version_id),
                 str('https://vereinsflieger.de/css/publicDefault?v='+self._css_version_id_0)
                 #str('https://vereinsflieger.de/signin.css?v='+self._css_version_id_1)
                ]
@@ -370,7 +372,8 @@ class VF_API():
         #
         # get default_js file
         #
-        default_js = self._session.get('https://vereinsflieger.de/js/default?v='+self._js_version_id)
+        #default_js = self._session.get('https://vereinsflieger.de/js/default?v='+self._js_version_id)
+        default_js = self._session.get('https://vereinsflieger.de/minscript/default?v='+self._js_version_id)
         default_js_data = default_js.content.decode('utf-8')
         self._debug_page(default_js, s_frame().f_code.co_name, default_js_data)
 
@@ -535,7 +538,7 @@ class VF_API():
         # check if it worked
         #
         if re.search('onclick="document.location.href=\'/signout.php\?signout=1\'">Abmelden<', main_page_data) is not None:
-            self._logged_in = 1
+            self._logged_in = True
             if self._debug > 0:
                 print("%s:" % (s_frame().f_code.co_name))
                 print("%s: ####################" % (s_frame().f_code.co_name))
@@ -543,7 +546,7 @@ class VF_API():
                 print("%s: ####################" % (s_frame().f_code.co_name))
                 print("%s:" % (s_frame().f_code.co_name))
         else:
-            self._logged_in = 0
+            self._logged_in = False
             if self._debug > 0:
                 print("%s:" % (s_frame().f_code.co_name))
                 print("%s: ################" % (s_frame().f_code.co_name))
