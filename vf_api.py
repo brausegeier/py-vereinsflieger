@@ -537,7 +537,8 @@ class VF_API():
         #
         # check if it worked
         #
-        if re.search('onclick="document.location.href=\'/signout.php\?signout=1\'">Abmelden<', main_page_data) is not None:
+        #if re.search('onclick="document.location.href=\'/signout.php\?signout=1\'">Abmelden<', main_page_data) is not None:
+        if re.search('onclick="document.location.href=\\\'signout\\\'">Abmelden<', main_page_data) is not None:
             self._logged_in = True
             if self._debug > 0:
                 print("%s:" % (s_frame().f_code.co_name))
