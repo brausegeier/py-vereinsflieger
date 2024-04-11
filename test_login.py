@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python3.9
 
 ################################################################################
 # py-vereinsflieger/test_login.py

@@ -27,7 +27,8 @@ class VF_API():
     def __init__(self, debug = 0):
         self._cleanup()
         self._debug = debug
-        self._session = Session()
+        #self._session = Session()
+        self._session = None
         self._user_id = None
         self._user_pwd_hash = None
         self._invoice_caid = None
@@ -88,6 +89,8 @@ class VF_API():
             self._user_id = user_id
         if user_pwd is not None:
             self._user_pwd_hash = md5(user_pwd.encode()).hexdigest()
+
+        self._session = Session()
 
         self._scrape_login_page()
         #self._get_useless_files()
@@ -187,6 +190,7 @@ class VF_API():
     def _scrape_login_page(self):
     #######
         if self._error < 0:
+            print("Error present when trying to scrape login page")
             return self._error
         if not isinstance(self._session, Session):
             return self._throw_error(-1, "Invalid session: %s" % (resp), s_frame().f_code.co_name)

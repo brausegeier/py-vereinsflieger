@@ -1,1 +1,5 @@
+requests
 pandas
+#Crypto
+pycryptodome
+urllib3==1.26.6

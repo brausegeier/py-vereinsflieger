@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python3.9
 
 ################################################################################
 # py-vereinsflieger/main.py
@@ -16,7 +16,7 @@ from credentials      import Credentials as cred
 #
 # Instantiate server
 #
-vs = voucher_server.VoucherServer(hostname='0.0.0.0', port=8080)
+vs = voucher_server.VoucherServer(hostname='0.0.0.0', port=8080, debug=3)
 
 #
 # Provide all credentials

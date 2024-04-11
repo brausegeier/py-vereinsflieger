@@ -34,7 +34,7 @@ class VoucherServer():
         self.ms = mail_sender.MailSender(self._debug)
         self._lock = Lock()
 
-        self.server = http.server.HTTPServer((self._hostname, self._port), ReqHandler)
+        self.server = http.server.ThreadingHTTPServer((self._hostname, self._port), ReqHandler)
         self.server.debug = self._debug
         self.server.vf_api = self.vf_api
         self.server.rc = self.rc
@@ -130,10 +130,10 @@ class ReqHandler(http.server.BaseHTTPRequestHandler):
 
         if valid:
             self.server.mail.send_voucher_mail(voucher)
-            return self._respond_voucher_success(voucher)
-
-        return self._respond_internal_error(user_desc="Interner Systemfehler, Gutschein konnte nicht erstellt werden.",
-            admin_desc=("Failed to create voucher with data: \"%s\"" % voucher))
+            self._respond_voucher_success(voucher)
+        else:
+            self._respond_internal_error(user_desc="Interner Systemfehler, Gutschein konnte nicht erstellt werden.",
+                admin_desc=("Failed to create voucher with data: \"%s\"" % voucher))
 
 
 
