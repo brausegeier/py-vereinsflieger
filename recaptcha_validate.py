@@ -35,8 +35,8 @@ class RecaptchaValidate():
             }
         if request_ip is not None:
             post_data["remoteip"] = request_ip
-            if self._debug > 1:
-                print("%s: Verifying with IP: \"%s\"" % (s_frame().f_code.co_name, request_ip))
+        if self._debug > 1:
+            print("%s: Verifying with IP: \"%s\"" % (s_frame().f_code.co_name, request_ip))
 
         if self._debug > 2:
             print("%s: POST data: \"%s\"" % (s_frame().f_code.co_name, post_data))

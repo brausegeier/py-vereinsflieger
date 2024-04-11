@@ -98,7 +98,7 @@ class VF_API():
 
         if self._error < 0:
             self._logged_in = False
-            return self._error
+            return self._logged_in
 
         if self._debug > 0:
             print("%s: Waiting for %s seconds ..." % (s_frame().f_code.co_name, login_timeout))
@@ -208,10 +208,17 @@ class VF_API():
         self._input_kv["pwinput"] = ""
         self._input_kv["pw"] = ""
         for line in form_inputs:
-            single_input = re.search('name="([0-9a-z]+)".*value="([0-9a-z]+)"', line)
+            #single_input = re.search('name="([0-9a-z]+)".*value="([0-9a-z]+)"', line)
+            single_input = re.findall('name="([0-9a-z]+)".*value="([0-9a-z]+)"', line)
             if single_input is None:
                 return self._throw_error(-1, "Failed to extract any input tag.", s_frame().f_code.co_name)
-            self._input_kv[single_input.group(1)] = single_input.group(2)
+            #self._input_kv[single_input.group(1)] = single_input.group(2)
+            for (idx, elem) in enumerate(single_input):
+                print(" regex_findall idx %s: elements[0]: %s" % (idx, elem[0]))
+                print(" regex_findall idx %s: elements[1]: %s" % (idx, elem[1]))
+                self._input_kv[elem[0]] = elem[1]
+            #for idx in range(len(single_input)):
+            #	self._input_kv[single_input.group(2*idx+1)] = single_input.group(2*idx+2)
         if self._debug > 3:
             print("%s: html form input values: %s" % (s_frame().f_code.co_name, self._input_kv))
 
@@ -315,7 +322,7 @@ class VF_API():
         #
         # search for pwdsalt site and magic ids in signin js
         #
-        self._pwdsalt_site = re.search('vfbase.loadContentX\(\'([a-z]+)\'\, \'post\', new ', signin_js_data)
+        self._pwdsalt_site = re.search('vfbase.loadContentX\(\'([0-9a-z]+)\?\'\+Date.now\(\)\, \'post\', new ', signin_js_data)
         magic_ids = re.search('document.signin.([a-z]+).value = md5\(document.signin.pw.value\+"([0-9a-z]+)"\+document.signin.pwdsalt.value\);', signin_js_data)
         if self._pwdsalt_site is None:
             return self._throw_error(-1, "Failed to extract pwdsalt_site.", s_frame().f_code.co_name)
@@ -520,9 +527,10 @@ class VF_API():
     def _request_login(self):
     #######
         if self._error < 0:
-            return self._error
+            return False
         if not isinstance(self._session, Session):
-            return self._throw_error(-1, "Invalid session: %s" % (resp), s_frame().f_code.co_name)
+            if self._throw_error(-1, "Invalid session: %s" % (resp), s_frame().f_code.co_name) <= 0:
+                return False
 
         if self._debug > 0:
             print("%s: Performing login request" % (s_frame().f_code.co_name))
@@ -533,6 +541,9 @@ class VF_API():
         main_page = self._session.post('https://vereinsflieger.de', data=self._input_kv)
         main_page_data = main_page.content.decode('utf-8')
         self._debug_page(main_page, s_frame().f_code.co_name, main_page_data)
+
+        if self._error < 0:
+            return False
 
         #
         # check if it worked
