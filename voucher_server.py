@@ -409,9 +409,12 @@ den entsprechenden Flug vor Ort eingelöst werden.</br>
 </br>
 Sie erhalten eine separate Rechnung per Email.</br>
 </br>
-Selbstverständlich dürfen Sie die Gutscheinnummer auf einem selbst gestalteten Gutschein an die begünstigte Person verschenken.''' % (
+Selbstverständlich dürfen Sie die Gutscheinnummer auf einem selbst gestalteten Gutschein an die begünstigte Person verschenken.</br>
+<l/br>
+Der Gutschein ist bis einschließlich %s glütig.
+''' % (
             voucher["buyer_firstname"], voucher["buyer_lastname"], voucher_type, voucher["guest_firstname"], voucher["guest_lastname"], voucher["amount"],
-            self.server._bank_holder, self.server._bank_iban, self.server._bank_bic, self.server._bank_name, voucher["id"], voucher["buyer_lastname"]))
+            self.server._bank_holder, self.server._bank_iban, self.server._bank_bic, self.server._bank_name, voucher["id"], voucher["buyer_lastname"], voucher["expiredate"]))
 
         #
         # Response -> redirect to success page (and display voucher / payment description)

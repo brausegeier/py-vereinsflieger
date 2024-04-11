@@ -120,6 +120,8 @@ Falls Sie weitere Fragen zur Rechnung haben, antworten Sie bitte auf diese Email
 
 Selbstverständlich dürfen Sie die Gutscheinnummer auf einem selbst gestalteten Gutschein an die begünstigte Person verschenken.
 
+Der Gutschein ist bis einschließlich %s glütig.
+
 Viele Grüße
 Alexander Bleitner
 
@@ -139,7 +141,7 @@ werden.
 Instagram: Breisgauverein_Segelflug
 <https://instagram.com/breisgauverein_segelflug>''' % (
             voucher["buyer_firstname"], voucher["buyer_lastname"], voucher_type, voucher["guest_firstname"], voucher["guest_lastname"], voucher["amount"], 
-            self._bank_holder, self._bank_iban, self._bank_bic, self._bank_name, voucher["id"], voucher["buyer_lastname"], info_tmg, self._mail_reply_to))
+            self._bank_holder, self._bank_iban, self._bank_bic, self._bank_name, voucher["id"], voucher["buyer_lastname"], info_tmg, self._mail_reply_to, voucher["expiredate"]))
         msg.set_content(msg_content)
 
         # if present, add invoice as attachment

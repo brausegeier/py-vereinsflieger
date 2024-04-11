@@ -27,7 +27,6 @@ class VF_API():
     def __init__(self, debug = 0):
         self._cleanup()
         self._debug = debug
-        #self._session = Session()
         self._session = None
         self._user_id = None
         self._user_pwd_hash = None
@@ -803,6 +802,10 @@ class VF_API():
         voucher_data["frm_voucherid"]   = str(self._voucher_data["id"])
         voucher_data["frm_value"]       = str(self._voucher_data["amount"])
         voucher_data["frm_passenger"]   = str(self._voucher_data["guest_firstname"]+" "+self._voucher_data["guest_lastname"])
+        # Ablauf zum Ende des Kalenderjahres nach >= 3 Jahren, z.B. 12.4.2024 -> 31.12.2027
+        current_year = int(strftime("%Y"))
+        self._voucher_data["expiredate"] = "31.12."+str(current_year+3)
+        voucher_data["frm_expiredate"]  = "31.12."+str(current_year+3)
         voucher_data["frm_title"]       = "Gutschein"
         voucher_data["frm_status"]      = "1" # "Erstellt"
         voucher_data["frm_adduser"]     = "0" # Do NOT create new user account!
@@ -959,9 +962,11 @@ class VF_API():
             invoice_data["frm_counter_%d" % idx]  = ""
             invoice_data["frm_callsign_%d" % idx] = ""
         # footer text
-        invoice_data["frm_footer"]      = '''Der Breisgauverein für Segelflug bedankt sich recht herzlich und wünscht allzeit einen guten Flug.
+        invoice_data["frm_footer"]      = '''Der Gutschein ist bis einschließlich %s gültig.
 
-Sofern nicht bereits geschehen überweisen Sie bitte den offenen Betrag innerhalb von 14 Tagen auf das oben angegebene Konto.'''
+Der Breisgauverein für Segelflug bedankt sich recht herzlich und wünscht allzeit einen guten Flug.
+
+Sofern nicht bereits geschehen überweisen Sie bitte den offenen Betrag innerhalb von 14 Tagen auf das oben angegebene Konto.'''% str(self._voucher_data["expiredate"])
         # do NOT finalize invoice -> can still be edited afterwards
         if "frm_lockmode" in invoice_data:
             del invoice_data["frm_lockmode"]
